@@ -397,6 +397,7 @@
         <input type="text" id="pam" inputmode="decimal" placeholder="&#8212;">
       </div>
     </div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">A média é calculada automaticamente a partir da sistólica e diastólica (PAM = (PAS + 2&times;PAD) / 3). Pode ser editada manualmente se o valor medido no exame for diferente.</p>
   </div>
 
   <div class="panel">
@@ -463,6 +464,16 @@ function val(id) {
   const v = document.getElementById(id).value.trim();
   return v === '' ? '___' : v;
 }
+
+function calcularPAM() {
+  const pas = parseFloat(document.getElementById('pas').value.replace(',', '.'));
+  const pad = parseFloat(document.getElementById('pad').value.replace(',', '.'));
+  if (!isNaN(pas) && !isNaN(pad)) {
+    document.getElementById('pam').value = Math.round((pas + 2 * pad) / 3);
+  }
+}
+document.getElementById('pas').addEventListener('input', calcularPAM);
+document.getElementById('pad').addEventListener('input', calcularPAM);
 
 document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
   radio.addEventListener('change', () => {
