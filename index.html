@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cateterismo Cardíaco Direito</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AB%80%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #eef2f0;
+    --surface: #ffffff;
+    --surface-alt: #f5f8f6;
+    --border: #d7e0dc;
+    --border-strong: #b9c7c1;
+    --text: #16211d;
+    --text-muted: #5c6d65;
+    --accent: #0f6f63;
+    --accent-strong: #0b5148;
+    --accent-soft: #e2f0ec;
+    --accent-contrast: #ffffff;
+    --focus: #0f6f63;
+    --mono-bg: #0c1a16;
+    --mono-text: #a9f6d4;
+    --mono-text-dim: #5fa98c;
+    --mono-border: #1c3a30;
+    --shadow: 0 1px 2px rgba(15,40,33,0.07), 0 10px 28px -14px rgba(15,40,33,0.22);
+    --danger: #b3462c;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1310;
+      --surface: #121e19;
+      --surface-alt: #16231d;
+      --border: #253830;
+      --border-strong: #37503f;
+      --text: #e6f1ec;
+      --text-muted: #96ab9f;
+      --accent: #3fd0aa;
+      --accent-strong: #74e6c6;
+      --accent-soft: rgba(63,208,170,0.14);
+      --accent-contrast: #062018;
+      --focus: #3fd0aa;
+      --mono-bg: #050c0a;
+      --mono-text: #8ff8cf;
+      --mono-text-dim: #3f7d64;
+      --mono-border: #163027;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -14px rgba(0,0,0,0.7);
+      --danger: #e08063;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0b1310;
+    --surface: #121e19;
+    --surface-alt: #16231d;
+    --border: #253830;
+    --border-strong: #37503f;
+    --text: #e6f1ec;
+    --text-muted: #96ab9f;
+    --accent: #3fd0aa;
+    --accent-strong: #74e6c6;
+    --accent-soft: rgba(63,208,170,0.14);
+    --accent-contrast: #062018;
+    --focus: #3fd0aa;
+    --mono-bg: #050c0a;
+    --mono-text: #8ff8cf;
+    --mono-text-dim: #3f7d64;
+    --mono-border: #163027;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -14px rgba(0,0,0,0.7);
+    --danger: #e08063;
+  }
+
+  * { box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 40px 20px 64px;
+  }
+
+  .sheet {
+    max-width: 740px;
+    margin: 0 auto;
+  }
+
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    font-size: clamp(1.7rem, 3.2vw, 2.15rem);
+    font-weight: 600;
+    line-height: 1.15;
+    margin: 0 0 8px;
+    text-wrap: balance;
+    color: var(--text);
+  }
+
+  .lede {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    max-width: 52ch;
+    line-height: 1.5;
+    margin: 0 0 32px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 22px 24px;
+    margin-bottom: 18px;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .panel-head .tick {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--accent);
+    flex: none;
+  }
+
+  .panel-head h2 {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 0.76rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0;
+    font-weight: 600;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 18px 20px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.01em;
+  }
+
+  .field input[type="text"] {
+    width: 100%;
+    border: none;
+    border-bottom: 1.5px solid var(--border-strong);
+    background: transparent;
+    color: var(--text);
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1rem;
+    padding: 4px 2px 8px;
+    border-radius: 0;
+  }
+
+  .field input[type="text"]::placeholder {
+    color: var(--text-muted);
+    opacity: 0.55;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  .field input[type="text"]:focus {
+    outline: none;
+    border-bottom-color: var(--focus);
+  }
+
+  .field input[type="text"]:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  .toggle-field { grid-column: span 1; }
+  @media (min-width: 480px) {
+    .toggle-field.wide { grid-column: span 2; }
+  }
+
+  .toggle {
+    display: inline-flex;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 7px;
+    overflow: hidden;
+    width: fit-content;
+  }
+
+  .toggle input { position: absolute; opacity: 0; pointer-events: none; }
+
+  .toggle span {
+    display: block;
+    padding: 7px 14px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    transition: background 120ms ease, color 120ms ease;
+    white-space: nowrap;
+  }
+
+  .toggle label:first-child span { border-right: 1.5px solid var(--border-strong); }
+
+  .toggle input:checked + span {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    font-weight: 600;
+  }
+
+  .toggle input:focus-visible + span {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+
+  .extra-slide {
+    margin-top: 12px;
+    max-width: 220px;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 4px;
+  }
+
+  button {
+    cursor: pointer;
+    border-radius: 7px;
+    padding: 11px 22px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    border: 1.5px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn-primary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border-color: var(--border-strong);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text-muted); }
+  .btn-ghost:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  #output-panel { display: none; }
+
+  .readout-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .readout-head .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .status .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  #output {
+    background: var(--mono-bg);
+    color: var(--mono-text);
+    border: 1px solid var(--mono-border);
+    border-radius: 8px;
+    padding: 20px;
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+
+  .readout-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  #copy-feedback {
+    font-size: 0.78rem;
+    color: var(--accent);
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+  #copy-feedback.show { opacity: 1; }
+
+  footer {
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    text-align: center;
+    margin-top: 28px;
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <p class="eyebrow">Hemodinâmica &middot; laboratório de cateterismo</p>
+  <h1>Cateterismo Cardíaco Direito</h1>
+  <p class="lede">Preencha os dados coletados no exame para compor o texto do laudo, pronto para copiar no formato padrão do serviço.</p>
+
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Paciente</h2></div>
+    <div class="grid">
+      <div class="field">
+        <label for="peso">Peso (kg)</label>
+        <input type="text" id="peso" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="altura">Altura (cm)</label>
+        <input type="text" id="altura" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="fc">FC (bpm)</label>
+        <input type="text" id="fc" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="so2">SO2 (%)</label>
+        <input type="text" id="so2" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field toggle-field wide">
+        <label>Modo de oxigênio</label>
+        <div class="toggle">
+          <label><input type="radio" name="o2mode" value="aa" checked><span>Ar ambiente</span></label>
+          <label><input type="radio" name="o2mode" value="o2"><span>O2 suplementar</span></label>
+        </div>
+        <div class="extra-slide field" id="o2-extra" style="display:none;">
+          <label for="o2lmin">Fluxo (L/min)</label>
+          <input type="text" id="o2lmin" inputmode="decimal" placeholder="&#8212;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Pressão arterial pulmonar</h2></div>
+    <div class="grid">
+      <div class="field">
+        <label for="pas">Sistólica (mmHg)</label>
+        <input type="text" id="pas" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="pad">Diastólica (mmHg)</label>
+        <input type="text" id="pad" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="pam">Média (mmHg)</label>
+        <input type="text" id="pam" inputmode="decimal" placeholder="&#8212;">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Débito cardíaco e derivados</h2></div>
+    <div class="grid">
+      <div class="field toggle-field wide">
+        <label>Método do DC</label>
+        <div class="toggle">
+          <label><input type="radio" name="dcmethod" value="Termodiluição" checked><span>Termodiluição</span></label>
+          <label><input type="radio" name="dcmethod" value="Fick"><span>Fick</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="dc">DC (L/min)</label>
+        <input type="text" id="dc" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="ic">IC (L/min/m&sup2;)</label>
+        <input type="text" id="ic" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="vsi">VSi (mL/bat/m&sup2;)</label>
+        <input type="text" id="vsi" inputmode="decimal" placeholder="&#8212;">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Resistências vasculares</h2></div>
+    <div class="grid">
+      <div class="field">
+        <label for="rvp">RVP (WU)</label>
+        <input type="text" id="rvp" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="rvs">RVS (dyn&middot;s&middot;cm&#8315;&#8309;)</label>
+        <input type="text" id="rvs" inputmode="decimal" placeholder="&#8212;">
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" onclick="gerarLaudo()">Gerar laudo</button>
+    <button class="btn-ghost" onclick="limparForm()">Limpar</button>
+  </div>
+
+  <div class="panel" id="output-panel">
+    <div class="readout-head">
+      <div class="panel-head" style="margin-bottom:0;"><span class="tick"></span><h2>Laudo gerado</h2></div>
+      <span class="status"><span class="dot"></span>Pronto</span>
+    </div>
+    <div id="output"></div>
+    <div class="readout-foot">
+      <button class="btn-ghost" onclick="copiarLaudo()">Copiar texto</button>
+      <span id="copy-feedback">Copiado</span>
+    </div>
+  </div>
+
+  <footer>Documento gerado localmente no navegador &mdash; nenhum dado é enviado ou armazenado.</footer>
+</div>
+
+<script>
+function val(id) {
+  const v = document.getElementById(id).value.trim();
+  return v === '' ? '___' : v;
+}
+
+document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    document.getElementById('o2-extra').style.display =
+      document.querySelector('input[name="o2mode"]:checked').value === 'o2' ? 'block' : 'none';
+  });
+});
+
+function gerarLaudo() {
+  const o2mode = document.querySelector('input[name="o2mode"]:checked').value;
+  const modoTexto = o2mode === 'aa' ? 'aa' : `O2 ${val('o2lmin')} L/min`;
+  const dcMethod = document.querySelector('input[name="dcmethod"]:checked').value;
+
+  const texto =
+`Cateterismo cardíaco direito
+Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoTexto}]; PA ${val('pas')}/${val('pad')} (${val('pam')}) mmHg; FC ${val('fc')} bpm;
+DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VSi ${val('vsi')} mL/bat/m²;
+RVP ${val('rvp')} WU; RVS ${val('rvs')} dyn·s·cm⁻⁵.`;
+
+  document.getElementById('output').textContent = texto;
+  document.getElementById('output-panel').style.display = 'block';
+  document.getElementById('output-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function copiarLaudo() {
+  const texto = document.getElementById('output').textContent;
+  navigator.clipboard.writeText(texto).then(() => {
+    const fb = document.getElementById('copy-feedback');
+    fb.classList.add('show');
+    setTimeout(() => fb.classList.remove('show'), 1500);
+  });
+}
+
+function limparForm() {
+  document.querySelectorAll('input[type="text"]').forEach(i => i.value = '');
+  document.querySelector('input[name="o2mode"][value="aa"]').checked = true;
+  document.querySelector('input[name="dcmethod"][value="Termodiluição"]').checked = true;
+  document.getElementById('o2-extra').style.display = 'none';
+  document.getElementById('output-panel').style.display = 'none';
+}
+</script>
+</body>
+</html>
