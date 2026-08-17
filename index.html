@@ -442,6 +442,7 @@
         <input type="text" id="vsi" inputmode="decimal" placeholder="&#8212;">
       </div>
     </div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">VSi = (IC &times; 1000) / FC. Calculado automaticamente a partir do IC e da FC informados acima.</p>
   </div>
 
   <div class="panel">
@@ -522,6 +523,16 @@ document.getElementById('poap').addEventListener('input', calcularRVP);
 document.getElementById('pamsist').addEventListener('input', calcularRVS);
 document.getElementById('prad').addEventListener('input', calcularRVS);
 document.getElementById('dc').addEventListener('input', () => { calcularRVP(); calcularRVS(); });
+
+function calcularVSI() {
+  const ic = num('ic');
+  const fc = num('fc');
+  if (!isNaN(ic) && !isNaN(fc) && fc !== 0) {
+    document.getElementById('vsi').value = Math.round((ic * 1000) / fc);
+  }
+}
+document.getElementById('ic').addEventListener('input', calcularVSI);
+document.getElementById('fc').addEventListener('input', calcularVSI);
 
 document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
   radio.addEventListener('change', () => {
