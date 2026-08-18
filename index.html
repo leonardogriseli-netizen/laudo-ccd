@@ -382,7 +382,7 @@
   </div>
 
   <div class="panel">
-    <div class="panel-head"><span class="tick"></span><h2>Pressão arterial pulmonar</h2></div>
+    <div class="panel-head"><span class="tick"></span><h2>Pressão arterial sistêmica</h2></div>
     <div class="grid">
       <div class="field">
         <label for="pas">Sistólica (mmHg)</label>
@@ -397,7 +397,7 @@
         <input type="text" id="pam" inputmode="decimal" placeholder="&#8212;">
       </div>
     </div>
-    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">A média é calculada automaticamente a partir da sistólica e diastólica (PAM = (PAS + 2&times;PAD) / 3). Pode ser editada manualmente se o valor medido no exame for diferente.</p>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">A média é calculada automaticamente a partir da sistólica e diastólica (PAM = (PAS + 2&times;PAD) / 3). Pode ser editada manualmente se o valor medido no exame for diferente. Esses valores entram no texto do laudo.</p>
   </div>
 
   <div class="panel">
@@ -408,8 +408,8 @@
         <input type="text" id="poap" inputmode="decimal" placeholder="&#8212;">
       </div>
       <div class="field">
-        <label for="pamsist">PA sistêmica média (mmHg)</label>
-        <input type="text" id="pamsist" inputmode="decimal" placeholder="&#8212;">
+        <label for="papm">PAPm &mdash; Pressão média da artéria pulmonar (mmHg)</label>
+        <input type="text" id="papm" inputmode="decimal" placeholder="&#8212;">
       </div>
       <div class="field">
         <label for="prad">Pressão de AD (mmHg)</label>
@@ -496,31 +496,31 @@ function calcularPAM() {
   if (!isNaN(pas) && !isNaN(pad)) {
     document.getElementById('pam').value = Math.round((pas + 2 * pad) / 3);
   }
-  calcularRVP();
+  calcularRVS();
 }
 
 function calcularRVP() {
-  const pam = num('pam');
+  const papm = num('papm');
   const poap = num('poap');
   const dc = num('dc');
-  if (!isNaN(pam) && !isNaN(poap) && !isNaN(dc) && dc !== 0) {
-    document.getElementById('rvp').value = ((pam - poap) / dc).toFixed(1);
+  if (!isNaN(papm) && !isNaN(poap) && !isNaN(dc) && dc !== 0) {
+    document.getElementById('rvp').value = ((papm - poap) / dc).toFixed(1);
   }
 }
 
 function calcularRVS() {
-  const pamsist = num('pamsist');
+  const pam = num('pam');
   const prad = num('prad');
   const dc = num('dc');
-  if (!isNaN(pamsist) && !isNaN(prad) && !isNaN(dc) && dc !== 0) {
-    document.getElementById('rvs').value = Math.round(80 * (pamsist - prad) / dc);
+  if (!isNaN(pam) && !isNaN(prad) && !isNaN(dc) && dc !== 0) {
+    document.getElementById('rvs').value = Math.round(80 * (pam - prad) / dc);
   }
 }
 
 document.getElementById('pas').addEventListener('input', calcularPAM);
 document.getElementById('pad').addEventListener('input', calcularPAM);
 document.getElementById('poap').addEventListener('input', calcularRVP);
-document.getElementById('pamsist').addEventListener('input', calcularRVS);
+document.getElementById('papm').addEventListener('input', calcularRVP);
 document.getElementById('prad').addEventListener('input', calcularRVS);
 document.getElementById('dc').addEventListener('input', () => { calcularRVP(); calcularRVS(); });
 
