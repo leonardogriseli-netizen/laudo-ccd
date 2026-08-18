@@ -554,6 +554,7 @@ function calcularRVS() {
 
 document.getElementById('pas').addEventListener('input', calcularPAM);
 document.getElementById('pad').addEventListener('input', calcularPAM);
+document.getElementById('pam').addEventListener('input', calcularRVS);
 document.getElementById('poap').addEventListener('input', calcularRVP);
 document.getElementById('papm').addEventListener('input', calcularRVP);
 document.getElementById('paps').addEventListener('input', calcularPAPM);
@@ -572,6 +573,7 @@ document.getElementById('ic').addEventListener('input', calcularVSI);
 document.getElementById('fc').addEventListener('input', calcularVSI);
 
 function calcularFickDC() {
+  if (document.querySelector('input[name="dcmethod"]:checked').value !== 'Fick') return;
   const vo2 = num('vo2');
   const hb = num('hb');
   const svo2 = num('svo2');
