@@ -404,19 +404,27 @@
     <div class="panel-head"><span class="tick"></span><h2>Pressões complementares</h2></div>
     <div class="grid">
       <div class="field">
-        <label for="poap">POAP (mmHg)</label>
-        <input type="text" id="poap" inputmode="decimal" placeholder="&#8212;">
+        <label for="paps">PA pulmonar sistólica (mmHg)</label>
+        <input type="text" id="paps" inputmode="decimal" placeholder="&#8212;">
       </div>
       <div class="field">
-        <label for="papm">PAPm &mdash; Pressão média da artéria pulmonar (mmHg)</label>
+        <label for="papd">PA pulmonar diastólica (mmHg)</label>
+        <input type="text" id="papd" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="papm">PAPm &mdash; média (mmHg)</label>
         <input type="text" id="papm" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="poap">POAP (mmHg)</label>
+        <input type="text" id="poap" inputmode="decimal" placeholder="&#8212;">
       </div>
       <div class="field">
         <label for="prad">Pressão de AD (mmHg)</label>
         <input type="text" id="prad" inputmode="decimal" placeholder="&#8212;">
       </div>
     </div>
-    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Usadas apenas para calcular RVP e RVS abaixo &mdash; não entram no texto do laudo.</p>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">PAPm calculada automaticamente (PAPm = (sistólica + 2&times;diastólica) / 3), editável se necessário. Usadas apenas para calcular RVP e RVS abaixo &mdash; não entram no texto do laudo.</p>
   </div>
 
   <div class="panel">
@@ -517,6 +525,15 @@ function calcularPAM() {
   calcularRVS();
 }
 
+function calcularPAPM() {
+  const paps = num('paps');
+  const papd = num('papd');
+  if (!isNaN(paps) && !isNaN(papd)) {
+    document.getElementById('papm').value = Math.round((paps + 2 * papd) / 3);
+  }
+  calcularRVP();
+}
+
 function calcularRVP() {
   const papm = num('papm');
   const poap = num('poap');
@@ -539,6 +556,8 @@ document.getElementById('pas').addEventListener('input', calcularPAM);
 document.getElementById('pad').addEventListener('input', calcularPAM);
 document.getElementById('poap').addEventListener('input', calcularRVP);
 document.getElementById('papm').addEventListener('input', calcularRVP);
+document.getElementById('paps').addEventListener('input', calcularPAPM);
+document.getElementById('papd').addEventListener('input', calcularPAPM);
 document.getElementById('prad').addEventListener('input', calcularRVS);
 document.getElementById('dc').addEventListener('input', () => { calcularRVP(); calcularRVS(); });
 
