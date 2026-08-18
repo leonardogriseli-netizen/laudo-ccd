@@ -429,6 +429,24 @@
           <label><input type="radio" name="dcmethod" value="Fick"><span>Fick</span></label>
         </div>
       </div>
+      <div id="fick-extra" style="display:none; grid-column: 1 / -1; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+        <label style="display:block; font-size:0.74rem; color:var(--text-muted); margin-bottom:10px;">Calcular DC por Fick</label>
+        <div class="grid">
+          <div class="field">
+            <label for="vo2">VO2 (mL/min)</label>
+            <input type="text" id="vo2" inputmode="decimal" placeholder="&#8212;">
+          </div>
+          <div class="field">
+            <label for="hb">Hb (g/dL)</label>
+            <input type="text" id="hb" inputmode="decimal" placeholder="&#8212;">
+          </div>
+          <div class="field">
+            <label for="svo2">SvO2 (%)</label>
+            <input type="text" id="svo2" inputmode="decimal" placeholder="&#8212;">
+          </div>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin:10px 0 0;">DC = VO2 / (1,34 &times; Hb &times; (SaO2 &minus; SvO2) &times; 10). Usa o SO2 informado em Paciente como SaO2. Preenche o campo DC automaticamente.</p>
+      </div>
       <div class="field">
         <label for="dc">DC (L/min)</label>
         <input type="text" id="dc" inputmode="decimal" placeholder="&#8212;">
@@ -534,10 +552,34 @@ function calcularVSI() {
 document.getElementById('ic').addEventListener('input', calcularVSI);
 document.getElementById('fc').addEventListener('input', calcularVSI);
 
+function calcularFickDC() {
+  const vo2 = num('vo2');
+  const hb = num('hb');
+  const svo2 = num('svo2');
+  const sao2 = num('so2');
+  if (!isNaN(vo2) && !isNaN(hb) && !isNaN(svo2) && !isNaN(sao2) && (sao2 - svo2) !== 0) {
+    document.getElementById('dc').value = (vo2 / (0.134 * hb * (sao2 - svo2))).toFixed(1);
+    calcularRVP();
+    calcularRVS();
+    calcularVSI();
+  }
+}
+document.getElementById('vo2').addEventListener('input', calcularFickDC);
+document.getElementById('hb').addEventListener('input', calcularFickDC);
+document.getElementById('svo2').addEventListener('input', calcularFickDC);
+document.getElementById('so2').addEventListener('input', calcularFickDC);
+
 document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
   radio.addEventListener('change', () => {
     document.getElementById('o2-extra').style.display =
       document.querySelector('input[name="o2mode"]:checked').value === 'o2' ? 'block' : 'none';
+  });
+});
+
+document.querySelectorAll('input[name="dcmethod"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    document.getElementById('fick-extra').style.display =
+      document.querySelector('input[name="dcmethod"]:checked').value === 'Fick' ? 'block' : 'none';
   });
 });
 
@@ -571,6 +613,7 @@ function limparForm() {
   document.querySelector('input[name="o2mode"][value="aa"]').checked = true;
   document.querySelector('input[name="dcmethod"][value="Termodiluição"]').checked = true;
   document.getElementById('o2-extra').style.display = 'none';
+  document.getElementById('fick-extra').style.display = 'none';
   document.getElementById('output-panel').style.display = 'none';
 }
 </script>
