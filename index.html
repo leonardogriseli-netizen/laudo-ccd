@@ -253,6 +253,11 @@
     color: var(--danger);
   }
 
+  .field input[type="text"].faltando {
+    border-bottom-color: var(--warn);
+    background: color-mix(in srgb, var(--warn) 10%, transparent);
+  }
+
   .aviso {
     color: var(--danger);
     font-size: 0.78rem;
@@ -345,6 +350,20 @@
 
   #output-panel { display: none; }
 
+  #output-panel.desatualizado #output {
+    opacity: 0.45;
+    filter: grayscale(0.6);
+  }
+  #output-panel.desatualizado .status .dot {
+    background: var(--danger);
+    box-shadow: 0 0 0 3px rgba(179,70,44,0.18);
+  }
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
   .readout-head {
     display: flex;
     align-items: center;
@@ -415,6 +434,12 @@
   <p class="eyebrow">Hemodinâmica &middot; laboratório de cateterismo</p>
   <h1>Cateterismo Cardíaco Direito</h1>
   <p class="lede">Preencha os dados coletados no exame para compor o texto do laudo, pronto para copiar no formato padrão do serviço.</p>
+
+  <div class="panel" id="banner-restaurado" style="display:none; border-color: var(--warn);">
+    <p style="margin:0 0 12px; font-size:0.88rem;"><strong>Exame anterior restaurado</strong> &mdash; estes campos vieram do último exame preenchido neste navegador, não de um formulário em branco. Confira antes de usar.</p>
+    <button class="btn-ghost" onclick="limparForm()">Limpar e começar do zero</button>
+    <button class="btn-ghost" onclick="document.getElementById('banner-restaurado').style.display='none'">Continuar este exame</button>
+  </div>
 
   <div class="panel">
     <div class="panel-head"><span class="tick"></span><h2>Paciente</h2></div>
@@ -642,16 +667,17 @@
   <div class="panel" id="output-panel">
     <div class="readout-head">
       <div class="panel-head" style="margin-bottom:0;"><span class="tick"></span><h2>Laudo gerado</h2></div>
-      <span class="status"><span class="dot"></span>Pronto</span>
+      <span class="status" id="status-laudo"><span class="dot"></span>Pronto</span>
     </div>
     <div id="output"></div>
+    <p class="aviso" id="aviso-desatualizado"></p>
     <div class="readout-foot">
-      <button class="btn-ghost" onclick="copiarLaudo()">Copiar texto</button>
+      <button class="btn-ghost" id="btn-copiar" onclick="copiarLaudo()">Copiar texto</button>
       <span id="copy-feedback">Copiado</span>
     </div>
   </div>
 
-  <footer>Documento gerado localmente no navegador &mdash; nenhum dado é enviado ou armazenado.</footer>
+  <footer>Os dados ficam só neste navegador &mdash; nada é enviado pela rede. O exame em andamento é guardado localmente para sobreviver a um recarregamento; use Limpar ao trocar de paciente.</footer>
 </div>
 
 <script>
@@ -660,11 +686,11 @@
 // ---------------------------------------------------------------------------
 
 const FAIXAS = {
-  peso: [1, 300], altura: [30, 250], fc: [20, 250], so2: [0, 100], o2lmin: [0, 60],
+  peso: [25, 250], altura: [120, 220], idade: [12, 110], fc: [25, 220], so2: [40, 100], o2lmin: [0, 60],
   pas: [0, 300], pad: [0, 250], pam: [0, 300],
   paps: [0, 200], papd: [0, 150], papm: [0, 150], poap: [0, 60], prad: [0, 50],
-  vo2: [30, 900], hb: [2, 25], svo2: [0, 100],
-  svc: [0, 100], ivc: [0, 100], mv: [0, 100], spv: [0, 100], spa: [0, 100]
+  vo2: [30, 900], hb: [3, 25], svo2: [15, 100],
+  svc: [15, 100], ivc: [15, 100], mv: [15, 100], spv: [60, 100], spa: [15, 100]
 };
 
 // Diferença arteriovenosa mínima aceita: abaixo da resolução do co-oxímetro o
@@ -676,6 +702,12 @@ function num(id) {
   const bruto = document.getElementById(id).value.trim().replace(/\s/g, '');
   if (!/^[+-]?\d+([.,]\d+)?$/.test(bruto)) return NaN;
   return parseFloat(bruto.replace(',', '.'));
+}
+
+// Nome do campo como aparece na tela, para as mensagens.
+function rotulo(id) {
+  const lbl = document.querySelector(`label[for="${id}"]`);
+  return lbl ? lbl.textContent.trim() : id;
 }
 
 function foraDeFaixa(id) {
@@ -694,14 +726,30 @@ function travado(id) {
   return document.getElementById(id).dataset.manual === '1';
 }
 
-function setCalc(id, valor) {
+// Os campos guardam o valor já arredondado para leitura. Reler esse texto para
+// alimentar o cálculo seguinte propaga o erro de arredondamento (IC, VSi e RVS
+// saíam errados por isso). O valor cheio fica aqui e é o que os cálculos usam.
+const PRECISO = {};
+
+function setCalc(id, exibido, preciso) {
   if (travado(id)) return;
-  document.getElementById(id).value = valor;
+  document.getElementById(id).value = exibido;
+  PRECISO[id] = (preciso !== undefined) ? preciso : parseFloat(String(exibido).replace(',', '.'));
 }
 
 function limparCalc(id) {
   if (travado(id)) return;
   document.getElementById(id).value = '';
+  delete PRECISO[id];
+}
+
+// Valor a usar nas contas: precisão cheia se o campo foi calculado e não
+// editado à mão; senão, o que está escrito nele.
+function calc(id) {
+  if (!travado(id) && PRECISO[id] !== undefined && document.getElementById(id).value.trim() !== '') {
+    return PRECISO[id];
+  }
+  return num(id);
 }
 
 // ---------------------------------------------------------------------------
@@ -722,13 +770,14 @@ function ciaAtiva() {
 // Fluxo que atravessa o leito pulmonar. Com shunt é o Qp, NÃO o débito
 // sistêmico — a resistência de um leito usa o fluxo que passa por ele.
 function fluxoPulmonar() {
-  return ciaAtiva() ? num('qp') : num('dc');
+  return ciaAtiva() ? calc('qp') : calc('dc');
 }
 
 function calcularPAM() {
   const pas = num('pas');
   const pad = num('pad');
-  if (!isNaN(pas) && !isNaN(pad)) setCalc('pam', Math.round((pas + 2 * pad) / 3));
+  const pam = (pas + 2 * pad) / 3;
+  if (!isNaN(pam)) setCalc('pam', Math.round(pam), pam);
   else limparCalc('pam');
   calcularRVS();
 }
@@ -736,30 +785,30 @@ function calcularPAM() {
 function calcularPAPM() {
   const paps = num('paps');
   const papd = num('papd');
-  if (!isNaN(paps) && !isNaN(papd)) setCalc('papm', Math.round((paps + 2 * papd) / 3));
+  const papm = (paps + 2 * papd) / 3;
+  if (!isNaN(papm)) setCalc('papm', Math.round(papm), papm);
   else limparCalc('papm');
   calcularRVP();
 }
 
 function calcularRVP() {
-  const papm = num('papm');
-  const poap = num('poap');
+  const gtp = calc('papm') - num('poap');
   const qpulm = fluxoPulmonar();
-  const gtp = papm - poap;
-
   if (!isNaN(gtp) && !isNaN(qpulm) && qpulm > 0) {
-    setCalc('rvp', (gtp / qpulm).toFixed(1));
+    const rvp = gtp / qpulm;
+    setCalc('rvp', rvp.toFixed(1), rvp);
   } else {
     limparCalc('rvp');
   }
 }
 
 function calcularRVS() {
-  const pam = num('pam');
+  const pam = calc('pam');
   const prad = num('prad');
-  const dc = num('dc');
+  const dc = calc('dc');
   if (!isNaN(pam) && !isNaN(prad) && !isNaN(dc) && dc > 0) {
-    setCalc('rvs', Math.round(80 * (pam - prad) / dc));
+    const rvs = 80 * (pam - prad) / dc;
+    setCalc('rvs', Math.round(rvs), rvs);
   } else {
     limparCalc('rvs');
   }
@@ -767,19 +816,31 @@ function calcularRVS() {
 
 function calcularVSI() {
   const fc = num('fc');
-  const dc = num('dc');
+  const dc = calc('dc');
   const bsa = calcularBSA();
 
   // IC = DC / superfície corporal — vale nos dois modos (com CIA, DC = Qs).
-  if (!isNaN(dc) && !isNaN(bsa) && bsa > 0) setCalc('ic', (dc / bsa).toFixed(1));
-  else limparCalc('ic');
+  if (!isNaN(dc) && !isNaN(bsa) && bsa > 0) {
+    const ic = dc / bsa;
+    setCalc('ic', ic.toFixed(1), ic);
+  } else {
+    limparCalc('ic');
+  }
 
-  if (!isNaN(dc) && !isNaN(fc) && fc > 0) setCalc('vs', Math.round((dc * 1000) / fc));
-  else limparCalc('vs');
+  if (!isNaN(dc) && !isNaN(fc) && fc > 0) {
+    const vs = (dc * 1000) / fc;
+    setCalc('vs', Math.round(vs), vs);
+  } else {
+    limparCalc('vs');
+  }
 
-  const ic = num('ic');
-  if (!isNaN(ic) && !isNaN(fc) && fc > 0) setCalc('vsi', Math.round((ic * 1000) / fc));
-  else limparCalc('vsi');
+  const ic = calc('ic');
+  if (!isNaN(ic) && !isNaN(fc) && fc > 0) {
+    const vsi = (ic * 1000) / fc;
+    setCalc('vsi', Math.round(vsi), vsi);
+  } else {
+    limparCalc('vsi');
+  }
 }
 
 function vo2Estimado() {
@@ -798,7 +859,7 @@ function calcularVO2() {
     const sexo = document.querySelector('input[name="sexo"]:checked').value;
     const coef = sexo === 'M' ? 11.49 : 17.04;
     const vo2i = 138.1 - coef * Math.log(idade) + 0.378 * fc;
-    setCalc('vo2', Math.round(vo2i * bsa));
+    setCalc('vo2', Math.round(vo2i * bsa), vo2i * bsa);
   }
   calcularFickDC();
   calcularQpQs();
@@ -807,13 +868,14 @@ function calcularVO2() {
 function calcularFickDC() {
   if (ciaAtiva()) return;
   if (document.querySelector('input[name="dcmethod"]:checked').value !== 'Fick') return;
-  const vo2 = num('vo2');
+  const vo2 = calc('vo2');
   const hb = num('hb');
   const svo2 = num('svo2');
   const sao2 = num('so2');
   const dif = sao2 - svo2;
   if (!isNaN(vo2) && vo2 > 0 && !isNaN(hb) && hb > 0 && !isNaN(dif) && dif >= DIF_MIN) {
-    setCalc('dc', (vo2 / (0.134 * hb * dif)).toFixed(1));
+    const dc = vo2 / (0.134 * hb * dif);
+    setCalc('dc', dc.toFixed(1), dc);
   } else {
     limparCalc('dc');
   }
@@ -826,7 +888,8 @@ function calcularMV() {
   if (!ciaAtiva()) return;
   const svc = num('svc');
   const ivc = num('ivc');
-  if (!isNaN(svc) && !isNaN(ivc)) setCalc('mv', ((3 * svc + ivc) / 4).toFixed(1));
+  const mv = (3 * svc + ivc) / 4;
+  if (!isNaN(mv)) setCalc('mv', mv.toFixed(1), mv);
   else limparCalc('mv');
   calcularQpQs();
 }
@@ -834,10 +897,10 @@ function calcularMV() {
 function calcularQpQs() {
   if (!ciaAtiva()) return;
   const sao2 = num('so2');
-  const mv = num('mv');
+  const mv = calc('mv');
   const spv = num('spv');
   const spa = num('spa');
-  const vo2 = num('vo2');
+  const vo2 = calc('vo2');
   const hb = num('hb');
   const difPulm = spv - spa;
   const difSist = sao2 - mv;
@@ -862,22 +925,34 @@ function calcularQpQs() {
   }
 
   // A razão Qp/Qs depende só das saturações — VO2 e Hb se cancelam.
-  if (pulmOk && sistOk) setCalc('qpqs', (difSist / difPulm).toFixed(2));
-  else limparCalc('qpqs');
+  if (pulmOk && sistOk) {
+    const razao = difSist / difPulm;
+    setCalc('qpqs', razao.toFixed(2), razao);
+  } else {
+    limparCalc('qpqs');
+  }
 
   // Qp e Qs absolutos (L/min) exigem VO2 e Hb.
   const fickOk = !isNaN(vo2) && vo2 > 0 && !isNaN(hb) && hb > 0;
-  if (fickOk && pulmOk) setCalc('qp', (vo2 / (0.134 * hb * difPulm)).toFixed(1));
-  else limparCalc('qp');
+  if (fickOk && pulmOk) {
+    const qp = vo2 / (0.134 * hb * difPulm);
+    setCalc('qp', qp.toFixed(1), qp);
+  } else {
+    limparCalc('qp');
+  }
 
   if (fickOk && sistOk) {
     const qs = vo2 / (0.134 * hb * difSist);
-    setCalc('qs', qs.toFixed(1));
-    setCalc('dc', qs.toFixed(1));
+    setCalc('qs', qs.toFixed(1), qs);
   } else {
     limparCalc('qs');
-    limparCalc('dc');
   }
+
+  // Com shunt, o débito sistêmico É o Qs — inclusive quando o operador digita
+  // o Qs à mão (aí o DC precisa acompanhar, senão o laudo se contradiz).
+  const qsAtual = calc('qs');
+  if (!isNaN(qsAtual) && qsAtual > 0) setCalc('dc', qsAtual.toFixed(1), qsAtual);
+  else limparCalc('dc');
 
   if (document.querySelector('input[name="o2mode"]:checked').value === 'o2') {
     avisos.push('Coleta sob O2 suplementar: o Qp/Qs por saturação pressupõe ar ambiente. Com FiO2 alta, o O2 dissolvido deixa de ser desprezível e a RVP não representa a condição basal.');
@@ -990,6 +1065,7 @@ document.getElementById('cia-ativo').addEventListener('change', () => {
     el.dataset.manual = '';
     el.classList.remove('manual');
     el.value = '';
+    delete PRECISO[id];
   });
 
   if (ativo) {
@@ -1051,7 +1127,8 @@ const GATILHOS = {
   spa: calcularQpQs,
   spv: calcularQpQs,
   qp: calcularRVP,
-  qs: calcularRVP
+  // Qs editado à mão manda no DC e em tudo que desce dele.
+  qs: () => { calcularQpQs(); calcularVSI(); calcularRVP(); calcularRVS(); }
 };
 
 DERIVADOS.forEach(id => {
@@ -1060,8 +1137,31 @@ DERIVADOS.forEach(id => {
     const manual = el.value.trim() !== '';
     el.dataset.manual = manual ? '1' : '';
     el.classList.toggle('manual', manual);
+    // O valor digitado é a nova verdade: descarta a precisão do cálculo antigo.
+    delete PRECISO[id];
   });
 });
+
+// Um laudo já gerado deixa de valer assim que qualquer dado muda. Enquanto não
+// for regerado, ele não pode ser copiado — era o jeito mais fácil de mandar
+// número velho para o prontuário.
+function invalidarLaudo() {
+  const painel = document.getElementById('output-panel');
+  if (painel.style.display !== 'block' || painel.classList.contains('desatualizado')) return;
+  painel.classList.add('desatualizado');
+  document.getElementById('btn-copiar').disabled = true;
+  document.getElementById('status-laudo').lastChild.textContent = 'Desatualizado';
+  document.getElementById('aviso-desatualizado').textContent =
+    'Os dados mudaram depois que este laudo foi gerado. Clique em Gerar laudo novamente antes de copiar.';
+}
+
+function revalidarLaudo() {
+  const painel = document.getElementById('output-panel');
+  painel.classList.remove('desatualizado');
+  document.getElementById('btn-copiar').disabled = false;
+  document.getElementById('status-laudo').lastChild.textContent = 'Pronto';
+  document.getElementById('aviso-desatualizado').textContent = '';
+}
 
 Object.keys(GATILHOS).forEach(id => {
   const el = document.getElementById(id);
@@ -1071,6 +1171,9 @@ Object.keys(GATILHOS).forEach(id => {
     atualizarInterpretacao();
   });
 });
+
+document.querySelectorAll('input[type="text"]').forEach(i => i.addEventListener('input', invalidarLaudo));
+document.querySelectorAll('input[type="radio"], #cia-ativo').forEach(i => i.addEventListener('change', invalidarLaudo));
 
 function atualizarModoVO2() {
   document.getElementById('vo2').readOnly = vo2Estimado();
@@ -1131,12 +1234,29 @@ RVP ${val('rvp')} WU; RVS ${val('rvs')} dyn·s·cm⁻⁵.`;
                     'dc', 'ic', 'vsi', 'rvp', 'rvs'];
   }
 
+  // Nomear os campos em falta e destacá-los: "8 campos vazios" obriga a caçar
+  // o problema em oito telas de formulário.
   const vazios = obrigatorios.filter(id => document.getElementById(id).value.trim() === '');
-  if (vazios.length && !confirm(
-      `${vazios.length} campo(s) do laudo estão vazios e sairão como "___".\n\nGerar mesmo assim?`)) {
+  const forai = Object.keys(FAIXAS).filter(id => foraDeFaixa(id));
+  document.querySelectorAll('.faltando').forEach(e => e.classList.remove('faltando'));
+  vazios.forEach(id => document.getElementById(id).classList.add('faltando'));
+
+  const problemas = [];
+  if (vazios.length) {
+    problemas.push(`${vazios.length} campo(s) sairão como "___": ` +
+      vazios.map(rotulo).join(', '));
+  }
+  if (forai.length) {
+    problemas.push('Valor implausível em: ' +
+      forai.map(id => `${rotulo(id)} = ${document.getElementById(id).value}`).join(', '));
+  }
+  if (problemas.length && !confirm(problemas.join('\n\n') + '\n\nGerar o laudo mesmo assim?')) {
+    const primeiro = document.getElementById(vazios[0] || forai[0]);
+    if (primeiro) { primeiro.scrollIntoView({ behavior: 'smooth', block: 'center' }); primeiro.focus(); }
     return;
   }
 
+  revalidarLaudo();
   document.getElementById('output').textContent = texto;
   document.getElementById('output-panel').style.display = 'block';
   document.getElementById('output-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1189,8 +1309,11 @@ function limparForm() {
   document.querySelectorAll('input[type="text"]').forEach(i => {
     i.value = '';
     i.dataset.manual = '';
-    i.classList.remove('manual', 'invalido');
+    i.classList.remove('manual', 'invalido', 'faltando');
+    delete PRECISO[i.id];
   });
+  document.getElementById('banner-restaurado').style.display = 'none';
+  revalidarLaudo();
   document.querySelector('input[name="o2mode"][value="aa"]').checked = true;
   document.querySelector('input[name="dcmethod"][value="Termodiluição"]').disabled = false;
   document.querySelector('input[name="dcmethod"][value="Termodiluição"]').checked = true;
@@ -1267,6 +1390,7 @@ function restaurarEstado() {
     document.getElementById('termo-aviso').textContent = 'Desabilitada com CIA ativo: o indicador da termodiluição recircula pelo shunt, tornando a medida não confiável. DC e IC usam o Qs calculado pela oximetria.';
   }
   atualizarFickExtra();
+  document.getElementById('banner-restaurado').style.display = 'block';
 }
 
 restaurarEstado();
