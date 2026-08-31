@@ -573,16 +573,8 @@
         <label for="rvs">RVS (dyn&middot;s&middot;cm&#8315;&#8309;)</label>
         <input type="text" id="rvs" inputmode="decimal" placeholder="&#8212;">
       </div>
-      <div class="field">
-        <label for="rvpi">RVP indexada (WU&middot;m&sup2;)</label>
-        <input type="text" id="rvpi" inputmode="decimal" placeholder="&#8212;">
-      </div>
-      <div class="field">
-        <label for="rvprvs">RVP/RVS</label>
-        <input type="text" id="rvprvs" inputmode="decimal" placeholder="&#8212;">
-      </div>
     </div>
-    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">RVP = (PA média &minus; POAP) / DC. RVS = 80 &times; (PA sistêmica média &minus; pressão de AD) / DC. RVP indexada = (PA média &minus; POAP) / IC. RVP/RVS = 80 &times; RVP / RVS. Calculados automaticamente, editáveis se necessário.</p>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">RVP = (PAPm &minus; POAP) / fluxo pulmonar &mdash; com CIA, o fluxo é o Qp. RVS = 80 &times; (PA sistêmica média &minus; pressão de AD) / DC. Calculados automaticamente, editáveis se necessário.</p>
   </div>
 
   <div class="panel">
@@ -696,7 +688,7 @@ function foraDeFaixa(id) {
 
 // Campos preenchidos por cálculo. Uma edição manual os "trava": o app não
 // sobrescreve mais um valor que o operador digitou (apagar o campo destrava).
-const DERIVADOS = ['pam', 'papm', 'mv', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvpi', 'rvs', 'rvprvs', 'qp', 'qs', 'qpqs'];
+const DERIVADOS = ['pam', 'papm', 'mv', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs', 'qp', 'qs', 'qpqs'];
 
 function travado(id) {
   return document.getElementById(id).dataset.manual === '1';
@@ -756,16 +748,10 @@ function calcularRVP() {
   const gtp = papm - poap;
 
   if (!isNaN(gtp) && !isNaN(qpulm) && qpulm > 0) {
-    const rvp = gtp / qpulm;
-    setCalc('rvp', rvp.toFixed(1));
-    const bsa = calcularBSA();
-    if (!isNaN(bsa) && bsa > 0) setCalc('rvpi', (rvp * bsa).toFixed(1));
-    else limparCalc('rvpi');
+    setCalc('rvp', (gtp / qpulm).toFixed(1));
   } else {
     limparCalc('rvp');
-    limparCalc('rvpi');
   }
-  calcularRVPRVS();
 }
 
 function calcularRVS() {
@@ -777,14 +763,6 @@ function calcularRVS() {
   } else {
     limparCalc('rvs');
   }
-  calcularRVPRVS();
-}
-
-function calcularRVPRVS() {
-  const rvp = num('rvp');
-  const rvs = num('rvs');
-  if (!isNaN(rvp) && !isNaN(rvs) && rvs > 0) setCalc('rvprvs', ((80 * rvp) / rvs).toFixed(2));
-  else limparCalc('rvprvs');
 }
 
 function calcularVSI() {
@@ -973,26 +951,6 @@ function atualizarInterpretacao() {
     push(`RVP ${fmt(rvp, 1)} WU`, c, n);
   }
 
-  const rvpi = num('rvpi');
-  if (!isNaN(rvpi)) {
-    const [c, n] = faixa(rvpi, [
-      [4, 'ok', '< 4 WU·m² — corrigível'],
-      [8, 'atencao', '4–8 WU·m² — individualizar, considerar vasorreatividade'],
-      [Infinity, 'alerta', '> 8 WU·m² — habitualmente não corrigível']
-    ]);
-    push(`RVP indexada ${fmt(rvpi, 1)} WU·m²`, c, n);
-  }
-
-  const rr = num('rvprvs');
-  if (!isNaN(rr)) {
-    const [c, n] = faixa(rr, [
-      [0.3, 'ok', '< 0,3 — corrigível'],
-      [0.5, 'atencao', '0,3–0,5 — individualizar'],
-      [Infinity, 'alerta', '> 0,5 — habitualmente não corrigível']
-    ]);
-    push(`RVP/RVS ${fmt(rr, 2)}`, c, n);
-  }
-
   const papm = num('papm');
   if (!isNaN(papm) && papm > 20) {
     const poap = num('poap');
@@ -1027,7 +985,7 @@ document.getElementById('cia-ativo').addEventListener('change', () => {
 
   // O DC e seus derivados mudam de procedência ao alternar o modo: descartar
   // para não rotular um valor de termodiluição como Fick (e vice-versa).
-  ['dc', 'ic', 'vs', 'vsi', 'rvp', 'rvpi', 'rvs', 'rvprvs'].forEach(id => {
+  ['dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'].forEach(id => {
     const el = document.getElementById(id);
     el.dataset.manual = '';
     el.classList.remove('manual');
@@ -1083,8 +1041,6 @@ const GATILHOS = {
   prad: calcularRVS,
   dc: () => { calcularVSI(); calcularRVP(); calcularRVS(); },
   ic: () => { calcularVSI(); calcularRVP(); },
-  rvp: calcularRVPRVS,
-  rvs: calcularRVPRVS,
   vo2: () => { calcularFickDC(); calcularQpQs(); },
   hb: () => { calcularFickDC(); calcularQpQs(); },
   svo2: calcularFickDC,
@@ -1161,11 +1117,11 @@ Pressões: AD ${val('prad')} mmHg; AP ${val('paps')}/${val('papd')} (${val('papm
 Oximetrias: VCS ${val('svc')}% / VCI ${val('ivc')}% / VP ${val('spv')}% / AP ${val('spa')}% / Ao ${val('so2')}%
 Qp ${val('qp')} L/min; Qs ${val('qs')} L/min; Qp/Qs ${val('qpqs')}
 DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VS ${val('vs')} mL/bat; VSi ${val('vsi')} mL/bat/m²
-RVP ${val('rvp')} WU; RVP indexada ${val('rvpi')} WU·m²; RVP/RVS ${val('rvprvs')}
+RVP ${val('rvp')} WU; RVS ${val('rvs')} dyn·s·cm⁻⁵
 Método: Hb ${val('hb')} g/dL; VO2 ${val('vo2')} mL/min (${origemVO2}); SC ${sc} m² (Du Bois); venosa mista ${val('mv')}% (Flamm); RVP calculada sobre o Qp.`;
     obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'prad', 'paps', 'papd', 'poap',
                     'svc', 'ivc', 'spv', 'spa', 'hb', 'vo2',
-                    'qp', 'qs', 'qpqs', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvpi', 'rvprvs'];
+                    'qp', 'qs', 'qpqs', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'];
   } else {
     texto =
 `${cabecalho}
