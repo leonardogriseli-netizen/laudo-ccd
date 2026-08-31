@@ -25,6 +25,7 @@
     --mono-border: #1c3a30;
     --shadow: 0 1px 2px rgba(15,40,33,0.07), 0 10px 28px -14px rgba(15,40,33,0.22);
     --danger: #b3462c;
+    --warn: #8a6410;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -47,6 +48,7 @@
       --mono-border: #163027;
       --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -14px rgba(0,0,0,0.7);
       --danger: #e08063;
+      --warn: #d8ab55;
     }
   }
 
@@ -69,6 +71,7 @@
     --mono-border: #163027;
     --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -14px rgba(0,0,0,0.7);
     --danger: #e08063;
+    --warn: #d8ab55;
   }
 
   * { box-sizing: border-box; }
@@ -258,6 +261,37 @@
   }
   .aviso:empty { display: none; }
 
+  #interpretacao:empty { display: none; }
+
+  .leitura {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 0;
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+  }
+  .leitura:first-child { border-top: none; }
+
+  .leitura .marca {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+    transform: translateY(-1px);
+  }
+  .leitura.ok .marca { background: var(--accent); }
+  .leitura.atencao .marca { background: var(--warn); }
+  .leitura.alerta .marca { background: var(--danger); }
+
+  .leitura .rotulo {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    flex: none;
+  }
+  .leitura .nota { color: var(--text-muted); }
+
   .extra-slide {
     margin-top: 12px;
     max-width: 220px;
@@ -391,6 +425,17 @@
         <label for="so2">SO2 (%)</label>
         <input type="text" id="so2" inputmode="decimal" placeholder="&#8212;">
       </div>
+      <div class="field">
+        <label for="idade">Idade (anos)</label>
+        <input type="text" id="idade" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field toggle-field">
+        <label>Sexo</label>
+        <div class="toggle">
+          <label><input type="radio" name="sexo" value="M" checked><span>M</span></label>
+          <label><input type="radio" name="sexo" value="F"><span>F</span></label>
+        </div>
+      </div>
       <div class="field toggle-field wide">
         <label>Modo de oxigênio</label>
         <div class="toggle">
@@ -464,6 +509,13 @@
       </div>
       <div id="fick-extra" style="display:none; grid-column: 1 / -1; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
         <label style="display:block; font-size:0.74rem; color:var(--text-muted); margin-bottom:10px;">Calcular DC por Fick</label>
+        <div class="field toggle-field" style="margin-bottom:14px;">
+          <label>Origem do VO2</label>
+          <div class="toggle">
+            <label><input type="radio" name="vo2mode" value="estimado" checked><span>Estimado (LaFarge)</span></label>
+            <label><input type="radio" name="vo2mode" value="medido"><span>Medido</span></label>
+          </div>
+        </div>
         <div class="grid">
           <div class="field">
             <label for="vo2">VO2 (mL/min)</label>
@@ -571,6 +623,12 @@
       </div>
       <p class="aviso" id="cia-aviso"></p>
     </div>
+  </div>
+
+  <div class="panel" id="painel-interpretacao" style="display:none;">
+    <div class="panel-head"><span class="tick"></span><h2>Leitura dos valores</h2></div>
+    <div id="interpretacao"></div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Faixas de refer&ecirc;ncia das diretrizes (ESC/ERS 2022 para hipertens&atilde;o pulmonar; ESC 2020 e ACC/AHA para cardiopatia congênita do adulto), exibidas apenas como apoio &mdash; n&atilde;o entram no texto do laudo e n&atilde;o substituem o julgamento cl&iacute;nico.</p>
   </div>
 
   <div class="actions">
@@ -735,6 +793,28 @@ function calcularVSI() {
   else limparCalc('vsi');
 }
 
+function vo2Estimado() {
+  return document.querySelector('input[name="vo2mode"]:checked').value === 'estimado';
+}
+
+// LaFarge & Miettinen (1970): VO2 indexado a partir de idade, sexo e FC.
+function calcularVO2() {
+  if (!vo2Estimado()) return;
+  const idade = num('idade');
+  const fc = num('fc');
+  const bsa = calcularBSA();
+  if (isNaN(idade) || idade <= 0 || isNaN(fc) || fc <= 0 || isNaN(bsa)) {
+    limparCalc('vo2');
+  } else {
+    const sexo = document.querySelector('input[name="sexo"]:checked').value;
+    const coef = sexo === 'M' ? 11.49 : 17.04;
+    const vo2i = 138.1 - coef * Math.log(idade) + 0.378 * fc;
+    setCalc('vo2', Math.round(vo2i * bsa));
+  }
+  calcularFickDC();
+  calcularQpQs();
+}
+
 function calcularFickDC() {
   if (ciaAtiva()) return;
   if (document.querySelector('input[name="dcmethod"]:checked').value !== 'Fick') return;
@@ -812,10 +892,91 @@ function calcularQpQs() {
 
   if (isNaN(calcularBSA())) avisos.push('Informe peso e altura para obter IC e RVP indexada.');
 
+  if (document.querySelector('input[name="o2mode"]:checked').value === 'o2') {
+    avisos.push('Coleta sob O2 suplementar: o Qp/Qs por saturação pressupõe ar ambiente. Com FiO2 alta, o O2 dissolvido deixa de ser desprezível e a RVP não representa a condição basal.');
+  }
+
   document.getElementById('cia-aviso').textContent = avisos.join(' ');
   calcularVSI();
   calcularRVP();
   calcularRVS();
+}
+
+// ---------------------------------------------------------------------------
+// Leitura dos valores (apoio na tela — não entra no laudo)
+// ---------------------------------------------------------------------------
+
+function fmt(n, casas) {
+  return n.toFixed(casas).replace('.', ',');
+}
+
+function faixa(valor, cortes) {
+  for (const [limite, classe, nota] of cortes) {
+    if (valor < limite) return [classe, nota];
+  }
+  const ultimo = cortes[cortes.length - 1];
+  return [ultimo[1], ultimo[2]];
+}
+
+function atualizarInterpretacao() {
+  const linhas = [];
+  const push = (rotulo, classe, nota) =>
+    linhas.push(`<div class="leitura ${classe}"><span class="marca"></span><span class="rotulo">${rotulo}</span><span class="nota">${nota}</span></div>`);
+
+  if (ciaAtiva()) {
+    const q = num('qpqs');
+    if (!isNaN(q)) {
+      if (q < 1) push(`Qp/Qs ${fmt(q, 2)}`, 'alerta', 'shunt líquido direita→esquerda — avaliar fisiologia de Eisenmenger');
+      else if (q < 1.5) push(`Qp/Qs ${fmt(q, 2)}`, 'ok', 'shunt sem repercussão hemodinâmica (< 1,5)');
+      else if (q < 2) push(`Qp/Qs ${fmt(q, 2)}`, 'atencao', 'shunt hemodinamicamente significativo (≥ 1,5)');
+      else push(`Qp/Qs ${fmt(q, 2)}`, 'atencao', 'shunt grande (≥ 2,0)');
+    }
+  }
+
+  const rvp = num('rvp');
+  if (!isNaN(rvp)) {
+    const [c, n] = faixa(rvp, [
+      [2, 'ok', 'normal (< 2 WU)'],
+      [3, 'ok', 'abaixo de 3 WU — faixa favorável ao fechamento'],
+      [5, 'atencao', 'zona cinzenta (3–5 WU) — avaliação em centro de referência'],
+      [Infinity, 'alerta', '≥ 5 WU — fechamento não recomendado sem reavaliação']
+    ]);
+    push(`RVP ${fmt(rvp, 1)} WU`, c, n);
+  }
+
+  const rvpi = num('rvpi');
+  if (!isNaN(rvpi)) {
+    const [c, n] = faixa(rvpi, [
+      [4, 'ok', '< 4 WU·m² — corrigível'],
+      [8, 'atencao', '4–8 WU·m² — individualizar, considerar vasorreatividade'],
+      [Infinity, 'alerta', '> 8 WU·m² — habitualmente não corrigível']
+    ]);
+    push(`RVP indexada ${fmt(rvpi, 1)} WU·m²`, c, n);
+  }
+
+  const rr = num('rvprvs');
+  if (!isNaN(rr)) {
+    const [c, n] = faixa(rr, [
+      [0.3, 'ok', '< 0,3 — corrigível'],
+      [0.5, 'atencao', '0,3–0,5 — individualizar'],
+      [Infinity, 'alerta', '> 0,5 — habitualmente não corrigível']
+    ]);
+    push(`RVP/RVS ${fmt(rr, 2)}`, c, n);
+  }
+
+  const papm = num('papm');
+  if (!isNaN(papm) && papm > 20) {
+    const poap = num('poap');
+    let n = 'hipertensão pulmonar (PAPm > 20 mmHg)';
+    if (!isNaN(poap)) n += poap > 15 ? ' de componente pós-capilar (POAP > 15)' : ' pré-capilar (POAP ≤ 15)';
+    push(`PAPm ${papm} mmHg`, 'atencao', n);
+  }
+
+  const ic = num('ic');
+  if (!isNaN(ic) && ic < 2.2) push(`IC ${fmt(ic, 1)} L/min/m²`, 'alerta', 'baixo débito (< 2,2 L/min/m²)');
+
+  document.getElementById('interpretacao').innerHTML = linhas.join('');
+  document.getElementById('painel-interpretacao').style.display = linhas.length ? 'block' : 'none';
 }
 
 // ---------------------------------------------------------------------------
@@ -857,17 +1018,20 @@ document.getElementById('cia-ativo').addEventListener('change', () => {
   atualizarFickExtra();
   if (ativo) { calcularMV(); calcularQpQs(); }
   else { calcularFickDC(); }
+  atualizarInterpretacao();
 });
 
 document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
   radio.addEventListener('change', () => {
     document.getElementById('o2-extra').style.display =
       document.querySelector('input[name="o2mode"]:checked').value === 'o2' ? 'block' : 'none';
+    calcularQpQs();
+    atualizarInterpretacao();
   });
 });
 
 document.querySelectorAll('input[name="dcmethod"]').forEach(radio => {
-  radio.addEventListener('change', () => { atualizarFickExtra(); calcularFickDC(); });
+  radio.addEventListener('change', () => { atualizarFickExtra(); calcularFickDC(); atualizarInterpretacao(); });
 });
 
 // ---------------------------------------------------------------------------
@@ -875,9 +1039,10 @@ document.querySelectorAll('input[name="dcmethod"]').forEach(radio => {
 // ---------------------------------------------------------------------------
 
 const GATILHOS = {
-  peso: () => { calcularVSI(); calcularRVP(); calcularQpQs(); },
-  altura: () => { calcularVSI(); calcularRVP(); calcularQpQs(); },
-  fc: calcularVSI,
+  peso: () => { calcularVO2(); calcularVSI(); calcularRVP(); calcularQpQs(); },
+  altura: () => { calcularVO2(); calcularVSI(); calcularRVP(); calcularQpQs(); },
+  idade: calcularVO2,
+  fc: () => { calcularVO2(); calcularVSI(); },
   pas: calcularPAM,
   pad: calcularPAM,
   pam: calcularRVS,
@@ -917,8 +1082,20 @@ Object.keys(GATILHOS).forEach(id => {
   el.addEventListener('input', () => {
     el.classList.toggle('invalido', foraDeFaixa(id));
     GATILHOS[id]();
+    atualizarInterpretacao();
   });
 });
+
+function atualizarModoVO2() {
+  document.getElementById('vo2').readOnly = vo2Estimado();
+  calcularVO2();
+  atualizarInterpretacao();
+}
+
+document.querySelectorAll('input[name="sexo"]').forEach(r =>
+  r.addEventListener('change', () => { calcularVO2(); atualizarInterpretacao(); }));
+document.querySelectorAll('input[name="vo2mode"]').forEach(r =>
+  r.addEventListener('change', atualizarModoVO2));
 
 // ---------------------------------------------------------------------------
 // Laudo
@@ -934,9 +1111,17 @@ function gerarLaudo() {
   const modoTexto = o2mode === 'aa' ? 'aa' : `O2 ${val('o2lmin')} L/min`;
   const dcMethod = document.querySelector('input[name="dcmethod"]:checked').value;
 
+  const papm = num('papm');
+  const poap = num('poap');
+  const gtp = (!isNaN(papm) && !isNaN(poap)) ? String(Math.round(papm - poap)) : '___';
+  const bsa = calcularBSA();
+  const sc = isNaN(bsa) ? '___' : bsa.toFixed(2).replace('.', ',');
+  const origemVO2 = vo2Estimado() ? 'estimado, LaFarge' : 'medido';
+
   const cabecalho =
 `Cateterismo cardíaco direito
-Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoTexto}]; PA ${val('pas')}/${val('pad')} (${val('pam')}) mmHg; FC ${val('fc')} bpm;`;
+Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoTexto}]; PA ${val('pas')}/${val('pad')} (${val('pam')}) mmHg; FC ${val('fc')} bpm;
+Pressões: AD ${val('prad')} mmHg; AP ${val('paps')}/${val('papd')} (${val('papm')}) mmHg; POAP ${val('poap')} mmHg; GTP ${gtp} mmHg;`;
 
   let texto;
   let obrigatorios;
@@ -946,15 +1131,18 @@ Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoT
 Oximetrias: VCS ${val('svc')}% / VCI ${val('ivc')}% / VP ${val('spv')}% / AP ${val('spa')}% / Ao ${val('so2')}%
 Qp ${val('qp')} L/min; Qs ${val('qs')} L/min; Qp/Qs ${val('qpqs')}
 DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VS ${val('vs')} mL/bat; VSi ${val('vsi')} mL/bat/m²
-RVP ${val('rvp')} WU; RVP indexada ${val('rvpi')} WU·m²; RVP/RVS ${val('rvprvs')}`;
-    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'svc', 'ivc', 'spv', 'spa',
+RVP ${val('rvp')} WU; RVP indexada ${val('rvpi')} WU·m²; RVP/RVS ${val('rvprvs')}
+Método: Hb ${val('hb')} g/dL; VO2 ${val('vo2')} mL/min (${origemVO2}); SC ${sc} m² (Du Bois); venosa mista ${val('mv')}% (Flamm); RVP calculada sobre o Qp.`;
+    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'prad', 'paps', 'papd', 'poap',
+                    'svc', 'ivc', 'spv', 'spa', 'hb', 'vo2',
                     'qp', 'qs', 'qpqs', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvpi', 'rvprvs'];
   } else {
     texto =
 `${cabecalho}
 DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VSi ${val('vsi')} mL/bat/m²;
 RVP ${val('rvp')} WU; RVS ${val('rvs')} dyn·s·cm⁻⁵.`;
-    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'dc', 'ic', 'vsi', 'rvp', 'rvs'];
+    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'prad', 'paps', 'papd', 'poap',
+                    'dc', 'ic', 'vsi', 'rvp', 'rvs'];
   }
 
   const vazios = obrigatorios.filter(id => document.getElementById(id).value.trim() === '');
@@ -1020,8 +1208,13 @@ function limparForm() {
   document.querySelector('input[name="o2mode"][value="aa"]').checked = true;
   document.querySelector('input[name="dcmethod"][value="Termodiluição"]').disabled = false;
   document.querySelector('input[name="dcmethod"][value="Termodiluição"]').checked = true;
+  document.querySelector('input[name="sexo"][value="M"]').checked = true;
+  document.querySelector('input[name="vo2mode"][value="estimado"]').checked = true;
+  document.getElementById('vo2').readOnly = true;
   document.getElementById('termo-aviso').textContent = '';
   document.getElementById('cia-aviso').textContent = '';
+  document.getElementById('painel-interpretacao').style.display = 'none';
+  document.getElementById('interpretacao').innerHTML = '';
   document.getElementById('o2-extra').style.display = 'none';
   document.getElementById('cia-ativo').checked = false;
   document.getElementById('cia-extra').style.display = 'none';
@@ -1048,7 +1241,9 @@ function salvarEstado() {
       campos,
       cia: ciaAtiva(),
       o2mode: document.querySelector('input[name="o2mode"]:checked').value,
-      dcmethod: document.querySelector('input[name="dcmethod"]:checked').value
+      dcmethod: document.querySelector('input[name="dcmethod"]:checked').value,
+      sexo: document.querySelector('input[name="sexo"]:checked').value,
+      vo2mode: document.querySelector('input[name="vo2mode"]:checked').value
     }));
   } catch (e) { /* modo privado ou storage bloqueado */ }
 }
@@ -1065,6 +1260,10 @@ function restaurarEstado() {
   if (o2) o2.checked = true;
   const dcm = document.querySelector(`input[name="dcmethod"][value="${dados.dcmethod}"]`);
   if (dcm) dcm.checked = true;
+  const sx = document.querySelector(`input[name="sexo"][value="${dados.sexo}"]`);
+  if (sx) sx.checked = true;
+  const vm = document.querySelector(`input[name="vo2mode"][value="${dados.vo2mode}"]`);
+  if (vm) vm.checked = true;
 
   Object.keys(dados.campos).forEach(id => {
     const el = document.getElementById(id);
@@ -1084,6 +1283,8 @@ function restaurarEstado() {
 }
 
 restaurarEstado();
+document.getElementById('vo2').readOnly = vo2Estimado();
+atualizarInterpretacao();
 document.querySelectorAll('input[type="text"]').forEach(i => i.addEventListener('input', salvarEstado));
 document.querySelectorAll('input[type="radio"], #cia-ativo').forEach(i => i.addEventListener('change', salvarEstado));
 </script>
