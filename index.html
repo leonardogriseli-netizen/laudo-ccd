@@ -706,23 +706,34 @@ function calcularQpQs() {
   const mv = num('mv');
   const spv = num('spv');
   const spa = num('spa');
+  const difPulm = spv - spa;
+  const difSist = sao2 - mv;
+
+  // A razão Qp/Qs depende só das saturações — VO2 e Hb se cancelam.
+  if (!isNaN(sao2) && !isNaN(mv) && !isNaN(spv) && !isNaN(spa) && difPulm !== 0) {
+    document.getElementById('qpqs').value = (difSist / difPulm).toFixed(2);
+  }
+
+  // Qp e Qs absolutos (L/min) exigem VO2 e Hb.
   const vo2 = num('vo2');
   const hb = num('hb');
-  if (!isNaN(sao2) && !isNaN(mv) && !isNaN(spv) && !isNaN(spa) && !isNaN(vo2) && !isNaN(hb) && (spv - spa) !== 0 && (sao2 - mv) !== 0) {
-    const qp = vo2 / (0.134 * hb * (spv - spa));
-    const qs = vo2 / (0.134 * hb * (sao2 - mv));
-    document.getElementById('qp').value = qp.toFixed(1);
-    document.getElementById('qs').value = qs.toFixed(1);
-    document.getElementById('qpqs').value = (qp / qs).toFixed(2);
-
-    document.getElementById('dc').value = qs.toFixed(1);
-    const bsa = calcularBSA();
-    if (!isNaN(bsa) && bsa !== 0) {
-      document.getElementById('ic').value = (qs / bsa).toFixed(1);
+  if (!isNaN(vo2) && !isNaN(hb) && hb !== 0) {
+    if (!isNaN(spv) && !isNaN(spa) && difPulm !== 0) {
+      document.getElementById('qp').value = (vo2 / (0.134 * hb * difPulm)).toFixed(1);
     }
-    calcularVSI();
-    calcularRVP();
-    calcularRVS();
+    if (!isNaN(sao2) && !isNaN(mv) && difSist !== 0) {
+      const qs = vo2 / (0.134 * hb * difSist);
+      document.getElementById('qs').value = qs.toFixed(1);
+
+      document.getElementById('dc').value = qs.toFixed(1);
+      const bsa = calcularBSA();
+      if (!isNaN(bsa) && bsa !== 0) {
+        document.getElementById('ic').value = (qs / bsa).toFixed(1);
+      }
+      calcularVSI();
+      calcularRVP();
+      calcularRVS();
+    }
   }
 }
 
