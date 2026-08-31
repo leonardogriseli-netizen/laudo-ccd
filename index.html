@@ -436,6 +436,10 @@
         <input type="text" id="so2" inputmode="decimal" placeholder="&#8212;">
       </div>
       <div class="field">
+        <label for="hb">Hb (g/dL)</label>
+        <input type="text" id="hb" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
         <label for="idade">Idade (anos)</label>
         <input type="text" id="idade" inputmode="decimal" placeholder="&#8212;">
       </div>
@@ -531,16 +535,12 @@
             <label for="vo2">VO2 (mL/min)</label>
             <input type="text" id="vo2" inputmode="decimal" placeholder="&#8212;">
           </div>
-          <div class="field">
-            <label for="hb">Hb (g/dL)</label>
-            <input type="text" id="hb" inputmode="decimal" placeholder="&#8212;">
-          </div>
           <div class="field" id="svo2-field">
             <label for="svo2">SvO2 (%)</label>
             <input type="text" id="svo2" inputmode="decimal" placeholder="&#8212;">
           </div>
         </div>
-        <p style="font-size:0.78rem; color:var(--text-muted); margin:10px 0 0;">DC = VO2 / (1,34 &times; Hb &times; (SaO2 &minus; SvO2) &times; 10). Usa o SO2 informado em Paciente como SaO2. Preenche o campo DC automaticamente.</p>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin:10px 0 0;">DC = VO2 / (1,34 &times; Hb &times; (SaO2 &minus; SvO2) &times; 10). Usa o SO2 e a Hb informados em Paciente. Preenche o campo DC automaticamente.</p>
       </div>
       <div class="field">
         <label for="dc">DC (L/min)</label>
@@ -616,7 +616,7 @@
           <input type="text" id="spa" inputmode="decimal" placeholder="&#8212;">
         </div>
       </div>
-      <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Ao = SO2 informado em Paciente. Venosa mista = (3&times;VCS + VCI) / 4 (fórmula de Flamm). Qp/Qs = (Ao &minus; venosa mista) / (veia pulmonar &minus; artéria pulmonar). VO2 e Hb usam os campos do bloco &quot;Calcular DC por Fick&quot; acima. DC e IC são calculados a partir do Qs &mdash; termodiluição não é confiável na presença de shunt.</p>
+      <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Ao = SO2 informado em Paciente. Venosa mista = (3&times;VCS + VCI) / 4 (fórmula de Flamm). Qp/Qs = (Ao &minus; venosa mista) / (veia pulmonar &minus; artéria pulmonar) &mdash; sai só com as saturações. Qp e Qs em L/min usam a Hb informada em Paciente e o VO2 do bloco acima. DC e IC são calculados a partir do Qs &mdash; termodiluição não é confiável na presença de shunt.</p>
       <div class="grid" style="margin-top:14px;">
         <div class="field">
           <label for="qp">Qp (L/min)</label>
