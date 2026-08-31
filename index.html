@@ -235,6 +235,11 @@
     outline-offset: -2px;
   }
 
+  .toggle input:disabled + span {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
   .extra-slide {
     margin-top: 12px;
     max-width: 220px;
@@ -437,6 +442,7 @@
           <label><input type="radio" name="dcmethod" value="Termodiluição" checked><span>Termodiluição</span></label>
           <label><input type="radio" name="dcmethod" value="Fick"><span>Fick</span></label>
         </div>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin:8px 0 0;" id="termo-aviso"></p>
       </div>
       <div id="fick-extra" style="display:none; grid-column: 1 / -1; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
         <label style="display:block; font-size:0.74rem; color:var(--text-muted); margin-bottom:10px;">Calcular DC por Fick</label>
@@ -540,16 +546,8 @@
           <label for="spv">SatO2 veia pulmonar (%)</label>
           <input type="text" id="spv" inputmode="decimal" placeholder="&#8212;">
         </div>
-        <div class="field">
-          <label for="vo2cia">VO2 (mL/min)</label>
-          <input type="text" id="vo2cia" inputmode="decimal" placeholder="&#8212;">
-        </div>
-        <div class="field">
-          <label for="hbcia">Hb (g/dL)</label>
-          <input type="text" id="hbcia" inputmode="decimal" placeholder="&#8212;">
-        </div>
       </div>
-      <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Qp/Qs = (SaO2 &minus; venosa mista) / (SatO2 veia pulmonar &minus; AP).</p>
+      <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Qp/Qs = (SaO2 &minus; venosa mista) / (SatO2 veia pulmonar &minus; AP). VO2 e Hb usam os campos do bloco &quot;Calcular DC por Fick&quot; acima (aparece automaticamente aqui ao marcar CIA). DC e IC passam a ser calculados automaticamente a partir do Qs &mdash; termodiluição não é confiável na presença de shunt.</p>
       <div class="grid" style="margin-top:14px;">
         <div class="field">
           <label for="qp">Qp (L/min)</label>
@@ -674,6 +672,7 @@ document.getElementById('ic').addEventListener('input', () => { calcularVSI(); c
 document.getElementById('fc').addEventListener('input', calcularVSI);
 
 function calcularFickDC() {
+  if (ciaAtiva()) return;
   if (document.querySelector('input[name="dcmethod"]:checked').value !== 'Fick') return;
   const vo2 = num('vo2');
   const hb = num('hb');
@@ -686,13 +685,20 @@ function calcularFickDC() {
     calcularVSI();
   }
 }
-document.getElementById('vo2').addEventListener('input', calcularFickDC);
-document.getElementById('hb').addEventListener('input', calcularFickDC);
+document.getElementById('vo2').addEventListener('input', () => { calcularFickDC(); calcularQpQs(); });
+document.getElementById('hb').addEventListener('input', () => { calcularFickDC(); calcularQpQs(); });
 document.getElementById('svo2').addEventListener('input', calcularFickDC);
-document.getElementById('so2').addEventListener('input', calcularFickDC);
+document.getElementById('so2').addEventListener('input', () => { calcularFickDC(); calcularQpQs(); });
 
 function ciaAtiva() {
   return document.getElementById('cia-ativo').checked;
+}
+
+function calcularBSA() {
+  const peso = num('peso');
+  const altura = num('altura');
+  if (isNaN(peso) || isNaN(altura)) return NaN;
+  return 0.007184 * Math.pow(peso, 0.425) * Math.pow(altura, 0.725);
 }
 
 function calcularMV() {
@@ -711,20 +717,45 @@ function calcularQpQs() {
   const mv = num('mv');
   const spv = num('spv');
   const spa = num('spa');
-  const vo2 = num('vo2cia');
-  const hb = num('hbcia');
+  const vo2 = num('vo2');
+  const hb = num('hb');
   if (!isNaN(sao2) && !isNaN(mv) && !isNaN(spv) && !isNaN(spa) && !isNaN(vo2) && !isNaN(hb) && (spv - spa) !== 0 && (sao2 - mv) !== 0) {
     const qp = vo2 / (0.134 * hb * (spv - spa));
     const qs = vo2 / (0.134 * hb * (sao2 - mv));
     document.getElementById('qp').value = qp.toFixed(1);
     document.getElementById('qs').value = qs.toFixed(1);
     document.getElementById('qpqs').value = (qp / qs).toFixed(2);
+
+    document.getElementById('dc').value = qs.toFixed(1);
+    const bsa = calcularBSA();
+    if (!isNaN(bsa) && bsa !== 0) {
+      document.getElementById('ic').value = (qs / bsa).toFixed(1);
+    }
+    calcularVSI();
+    calcularRVP();
+    calcularRVS();
   }
+}
+
+function atualizarFickExtra() {
+  const mostrar = ciaAtiva() || document.querySelector('input[name="dcmethod"]:checked').value === 'Fick';
+  document.getElementById('fick-extra').style.display = mostrar ? 'block' : 'none';
 }
 
 document.getElementById('cia-ativo').addEventListener('change', () => {
   const ativo = ciaAtiva();
   document.getElementById('cia-extra').style.display = ativo ? 'block' : 'none';
+  const termoRadio = document.querySelector('input[name="dcmethod"][value="Termodiluição"]');
+  const avisoTermo = document.getElementById('termo-aviso');
+  if (ativo) {
+    document.querySelector('input[name="dcmethod"][value="Fick"]').checked = true;
+    termoRadio.disabled = true;
+    avisoTermo.textContent = 'Desabilitada com CIA ativo: o indicador da termodiluição recircula pelo shunt, tornando a medida não confiável. DC e IC usam o Qs calculado pela oximetria.';
+  } else {
+    termoRadio.disabled = false;
+    avisoTermo.textContent = '';
+  }
+  atualizarFickExtra();
   if (ativo) { calcularMV(); calcularQpQs(); }
 });
 document.getElementById('svc').addEventListener('input', calcularMV);
@@ -732,9 +763,6 @@ document.getElementById('ivc').addEventListener('input', calcularMV);
 document.getElementById('mv').addEventListener('input', calcularQpQs);
 document.getElementById('spa').addEventListener('input', calcularQpQs);
 document.getElementById('spv').addEventListener('input', calcularQpQs);
-document.getElementById('vo2cia').addEventListener('input', calcularQpQs);
-document.getElementById('hbcia').addEventListener('input', calcularQpQs);
-document.getElementById('so2').addEventListener('input', calcularQpQs);
 
 document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
   radio.addEventListener('change', () => {
@@ -744,10 +772,7 @@ document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
 });
 
 document.querySelectorAll('input[name="dcmethod"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    document.getElementById('fick-extra').style.display =
-      document.querySelector('input[name="dcmethod"]:checked').value === 'Fick' ? 'block' : 'none';
-  });
+  radio.addEventListener('change', atualizarFickExtra);
 });
 
 function gerarLaudo() {
@@ -791,7 +816,9 @@ function copiarLaudo() {
 function limparForm() {
   document.querySelectorAll('input[type="text"]').forEach(i => i.value = '');
   document.querySelector('input[name="o2mode"][value="aa"]').checked = true;
+  document.querySelector('input[name="dcmethod"][value="Termodiluição"]').disabled = false;
   document.querySelector('input[name="dcmethod"][value="Termodiluição"]').checked = true;
+  document.getElementById('termo-aviso').textContent = '';
   document.getElementById('o2-extra').style.display = 'none';
   document.getElementById('fick-extra').style.display = 'none';
   document.getElementById('cia-ativo').checked = false;
