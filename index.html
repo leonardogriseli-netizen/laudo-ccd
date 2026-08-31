@@ -528,26 +528,15 @@
           <input type="text" id="mv" inputmode="decimal" placeholder="&#8212;">
         </div>
         <div class="field">
-          <label for="satad">AD (%)</label>
-          <input type="text" id="satad" inputmode="decimal" placeholder="&#8212;">
+          <label for="spv">Veia pulmonar (%)</label>
+          <input type="text" id="spv" inputmode="decimal" placeholder="&#8212;">
         </div>
         <div class="field">
-          <label for="satvd">VD (%)</label>
-          <input type="text" id="satvd" inputmode="decimal" placeholder="&#8212;">
-        </div>
-        <div class="field">
-          <label for="spa">AP (%)</label>
+          <label for="spa">Artéria pulmonar (%)</label>
           <input type="text" id="spa" inputmode="decimal" placeholder="&#8212;">
         </div>
       </div>
-      <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Ao = SO2 informado em Paciente. Venosa mista = (3&times;VCS + VCI) / 4 (fórmula de Flamm).</p>
-      <div class="grid" style="margin-top:14px;">
-        <div class="field">
-          <label for="spv">SatO2 veia pulmonar (%)</label>
-          <input type="text" id="spv" inputmode="decimal" placeholder="&#8212;">
-        </div>
-      </div>
-      <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Qp/Qs = (SaO2 &minus; venosa mista) / (SatO2 veia pulmonar &minus; AP). VO2 e Hb usam os campos do bloco &quot;Calcular DC por Fick&quot; acima (aparece automaticamente aqui ao marcar CIA). DC e IC passam a ser calculados automaticamente a partir do Qs &mdash; termodiluição não é confiável na presença de shunt.</p>
+      <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Ao = SO2 informado em Paciente. Venosa mista = (3&times;VCS + VCI) / 4 (fórmula de Flamm). Qp/Qs = (Ao &minus; venosa mista) / (veia pulmonar &minus; artéria pulmonar). VO2 e Hb usam os campos do bloco &quot;Calcular DC por Fick&quot; acima. DC e IC são calculados a partir do Qs &mdash; termodiluição não é confiável na presença de shunt.</p>
       <div class="grid" style="margin-top:14px;">
         <div class="field">
           <label for="qp">Qp (L/min)</label>
@@ -788,7 +777,7 @@ Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoT
   if (ciaAtiva()) {
     texto =
 `${cabecalho}
-Oximetrias: VCS ${val('svc')}% / VCI ${val('ivc')}% / AD ${val('satad')}% / VD ${val('satvd')}% / AP ${val('spa')}% / Ao ${val('so2')}%
+Oximetrias: VCS ${val('svc')}% / VCI ${val('ivc')}% / VP ${val('spv')}% / AP ${val('spa')}% / Ao ${val('so2')}%
 Qp ${val('qp')} L/min; Qs ${val('qs')} L/min; Qp/Qs ${val('qpqs')}
 DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VS ${val('vs')} mL/bat; VSi ${val('vsi')} mL/bat/m²
 RVP ${val('rvp')} WU; RVP indexada ${val('rvpi')} WU·m²; RVP/RVS ${val('rvprvs')}`;
