@@ -261,6 +261,16 @@
   }
   .aviso:empty { display: none; }
 
+  .pendencia {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 12px 0 0;
+    padding-left: 12px;
+    border-left: 2px solid var(--warn);
+  }
+  .pendencia:empty { display: none; }
+
   #interpretacao:empty { display: none; }
 
   .leitura {
@@ -622,6 +632,7 @@
         </div>
       </div>
       <p class="aviso" id="cia-aviso"></p>
+      <p class="pendencia" id="cia-pendencia"></p>
     </div>
   </div>
 
@@ -890,13 +901,31 @@ function calcularQpQs() {
     limparCalc('dc');
   }
 
-  if (isNaN(calcularBSA())) avisos.push('Informe peso e altura para obter IC e RVP indexada.');
-
   if (document.querySelector('input[name="o2mode"]:checked').value === 'o2') {
     avisos.push('Coleta sob O2 suplementar: o Qp/Qs por saturação pressupõe ar ambiente. Com FiO2 alta, o O2 dissolvido deixa de ser desprezível e a RVP não representa a condição basal.');
   }
 
+  // O Qp/Qs sai só com as saturações, mas os fluxos em L/min dependem de Fick.
+  // Dizer exatamente o que falta, em vez de deixar os campos vazios sem explicação.
+  const pendencias = [];
+  if (!fickOk) {
+    const falta = [];
+    if (isNaN(hb) || hb <= 0) falta.push('Hb');
+    if (isNaN(vo2) || vo2 <= 0) {
+      falta.push(vo2Estimado()
+        ? 'VO2 (preencha idade, peso, altura e FC para estimar, ou troque para "Medido")'
+        : 'VO2');
+    }
+    if (falta.length && (pulmOk || sistOk)) {
+      pendencias.push('Qp e Qs em L/min dependem de ' + falta.join(' e ') +
+        '. Sem isso saem apenas o Qp/Qs (que não precisa dos dois), e ficam vazios também DC, IC, VS, VSi e as resistências.');
+    }
+  } else if (isNaN(calcularBSA())) {
+    pendencias.push('Informe peso e altura para obter IC e RVP indexada.');
+  }
+
   document.getElementById('cia-aviso').textContent = avisos.join(' ');
+  document.getElementById('cia-pendencia').textContent = pendencias.join(' ');
   calcularVSI();
   calcularRVP();
   calcularRVS();
@@ -1014,6 +1043,7 @@ document.getElementById('cia-ativo').addEventListener('change', () => {
     termoRadio.checked = true;
     avisoTermo.textContent = '';
     document.getElementById('cia-aviso').textContent = '';
+    document.getElementById('cia-pendencia').textContent = '';
   }
   atualizarFickExtra();
   if (ativo) { calcularMV(); calcularQpQs(); }
@@ -1213,6 +1243,7 @@ function limparForm() {
   document.getElementById('vo2').readOnly = true;
   document.getElementById('termo-aviso').textContent = '';
   document.getElementById('cia-aviso').textContent = '';
+  document.getElementById('cia-pendencia').textContent = '';
   document.getElementById('painel-interpretacao').style.display = 'none';
   document.getElementById('interpretacao').innerHTML = '';
   document.getElementById('o2-extra').style.display = 'none';
