@@ -847,7 +847,10 @@ function vo2Estimado() {
   return document.querySelector('input[name="vo2mode"]:checked').value === 'estimado';
 }
 
-// LaFarge & Miettinen (1970): VO2 indexado a partir de idade, sexo e FC.
+// LaFarge & Miettinen (1970), VO2 indexado em mL/min/m²:
+//   homem : 138,1 − 11,49·ln(idade) + 0,378·FC
+//   mulher: 138,1 − 17,04·ln(idade) + 0,138·FC
+// Os DOIS coeficientes mudam com o sexo — o da idade e o da FC.
 function calcularVO2() {
   if (!vo2Estimado()) return;
   const idade = num('idade');
@@ -856,9 +859,10 @@ function calcularVO2() {
   if (isNaN(idade) || idade <= 0 || isNaN(fc) || fc <= 0 || isNaN(bsa)) {
     limparCalc('vo2');
   } else {
-    const sexo = document.querySelector('input[name="sexo"]:checked').value;
-    const coef = sexo === 'M' ? 11.49 : 17.04;
-    const vo2i = 138.1 - coef * Math.log(idade) + 0.378 * fc;
+    const homem = document.querySelector('input[name="sexo"]:checked').value === 'M';
+    const coefIdade = homem ? 11.49 : 17.04;
+    const coefFC = homem ? 0.378 : 0.138;
+    const vo2i = 138.1 - coefIdade * Math.log(idade) + coefFC * fc;
     setCalc('vo2', Math.round(vo2i * bsa), vo2i * bsa);
   }
   calcularFickDC();
