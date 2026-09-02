@@ -532,7 +532,8 @@
         <input type="text" id="prad" inputmode="decimal" placeholder="&#8212;">
       </div>
     </div>
-    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">PAPm calculada automaticamente (PAPm = (sistólica + 2&times;diastólica) / 3), editável se necessário. Usadas apenas para calcular RVP e RVS abaixo &mdash; não entram no texto do laudo.</p>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">A PAPm é estimada por (sistólica + 2&times;diastólica) / 3 &mdash; isso é mnemônico, não medida. Se o sistema mostrar a média integrada da curva, digite-a por cima. Estes valores entram no laudo e alimentam a RVP e a RVS.</p>
+    <p class="aviso" id="pressao-aviso"></p>
   </div>
 
   <div class="panel">
@@ -551,9 +552,11 @@
         <div class="field toggle-field" style="margin-bottom:14px;">
           <label>Origem do VO2</label>
           <div class="toggle">
-            <label><input type="radio" name="vo2mode" value="estimado" checked><span>Estimado (LaFarge)</span></label>
+            <label><input type="radio" name="vo2mode" value="dehmer" checked><span>125 &times; SC</span></label>
+            <label><input type="radio" name="vo2mode" value="lafarge"><span>LaFarge</span></label>
             <label><input type="radio" name="vo2mode" value="medido"><span>Medido</span></label>
           </div>
+          <p class="pendencia" id="vo2-aviso" style="border-left-color: var(--warn);"></p>
         </div>
         <div class="grid">
           <div class="field">
@@ -791,28 +794,54 @@ function calcularPAPM() {
   calcularRVP();
 }
 
+// Resistência negativa não descreve paciente nenhum — descreve campo trocado.
+// Não calcular é melhor que imprimir o impossível.
 function calcularRVP() {
   const gtp = calc('papm') - num('poap');
   const qpulm = fluxoPulmonar();
-  if (!isNaN(gtp) && !isNaN(qpulm) && qpulm > 0) {
+  if (!isNaN(gtp) && gtp >= 0 && !isNaN(qpulm) && qpulm > 0) {
     const rvp = gtp / qpulm;
     setCalc('rvp', rvp.toFixed(1), rvp);
   } else {
     limparCalc('rvp');
   }
+  avaliarPressoes();
 }
 
 function calcularRVS() {
   const pam = calc('pam');
   const prad = num('prad');
   const dc = calc('dc');
-  if (!isNaN(pam) && !isNaN(prad) && !isNaN(dc) && dc > 0) {
+  if (!isNaN(pam) && !isNaN(prad) && pam > prad && !isNaN(dc) && dc > 0) {
     const rvs = 80 * (pam - prad) / dc;
     setCalc('rvs', Math.round(rvs), rvs);
   } else {
     limparCalc('rvs');
   }
 }
+
+// Coerências que não dependem de diretriz: se violadas, houve troca de campo
+// ou erro de traçado, e o número derivado não é interpretável.
+function avaliarPressoes() {
+  const papm = calc('papm'), poap = num('poap'), papd = num('papd'), paps = num('paps');
+  const pam = calc('pam'), pas = num('pas'), pad = num('pad');
+  const av = [];
+  if (!isNaN(papm) && !isNaN(poap) && papm < poap) {
+    av.push('POAP maior que a PAP média: o gradiente transpulmonar seria negativo. Reveja o encunhamento e o zero do transdutor.');
+  } else if (!isNaN(papd) && !isNaN(poap) && poap > papd) {
+    av.push('POAP acima da PAP diastólica — impossível em regime estacionário fora de onda v gigante. Suspeite de overwedge, balão não encunhado ou zero fora do eixo flebostático.');
+  }
+  if (!isNaN(paps) && !isNaN(papd) && papd > paps) av.push('PAP diastólica maior que a sistólica.');
+  if (!isNaN(pas) && !isNaN(pad) && pad > pas) av.push('PA diastólica maior que a sistólica.');
+  const prad = num('prad');
+  if (!isNaN(pam) && !isNaN(prad) && pam <= prad) av.push('PA média menor ou igual à pressão de AD: a RVS seria negativa.');
+  const gtp = papm - poap;
+  if (!isNaN(gtp) && gtp >= 0 && gtp <= 5) {
+    av.push('Gradiente transpulmonar de ' + Math.round(gtp) + ' mmHg está dentro do erro de medida: a RVP calculada não sustenta uma casa decimal.');
+  }
+  document.getElementById('pressao-aviso').textContent = av.join(' ');
+}
+
 
 function calcularVSI() {
   const fc = num('fc');
@@ -843,8 +872,33 @@ function calcularVSI() {
   }
 }
 
+function modoVO2() {
+  return document.querySelector('input[name="vo2mode"]:checked').value;
+}
+
 function vo2Estimado() {
-  return document.querySelector('input[name="vo2mode"]:checked').value === 'estimado';
+  return modoVO2() !== 'medido';
+}
+
+// O VO2 indexado é a única forma de perceber que a estimativa saiu absurda.
+// Referência: repouso ~110–160 mL/min/m²; 1 MET ≈ 3,5 mL/kg/min.
+function avaliarVO2() {
+  const vo2 = calc('vo2');
+  const bsa = calcularBSA();
+  const el = document.getElementById('vo2-aviso');
+  if (isNaN(vo2) || isNaN(bsa) || bsa <= 0) { el.textContent = ''; return; }
+  const vo2i = vo2 / bsa;
+  const partes = [`VO2 indexado ${vo2i.toFixed(0)} mL/min/m².`];
+  if (vo2i < 90) {
+    partes.push('Abaixo do consumo de repouso esperado — os fluxos absolutos, o IC e as resistências ficam subestimados. Prefira VO2 medido. (A razão Qp/Qs não é afetada.)');
+  } else if (vo2i > 180) {
+    partes.push('Acima do esperado em repouso — confira a unidade do VO2 e a superfície corporal.');
+  }
+  const idade = num('idade');
+  if (modoVO2() === 'lafarge' && !isNaN(idade) && idade > 40) {
+    partes.push('LaFarge foi derivada em 3–40 anos; acima disso está extrapolada e subestima progressivamente.');
+  }
+  el.textContent = partes.length > 1 ? partes.join(' ') : '';
 }
 
 // LaFarge & Miettinen (1970), VO2 indexado em mL/min/m²:
@@ -856,15 +910,21 @@ function calcularVO2() {
   const idade = num('idade');
   const fc = num('fc');
   const bsa = calcularBSA();
-  if (isNaN(idade) || idade <= 0 || isNaN(fc) || fc <= 0 || isNaN(bsa)) {
+  const lafarge = modoVO2() === 'lafarge';
+  if (isNaN(bsa) || (lafarge && (isNaN(idade) || idade <= 0 || isNaN(fc) || fc <= 0))) {
     limparCalc('vo2');
-  } else {
+  } else if (lafarge) {
     const homem = document.querySelector('input[name="sexo"]:checked').value === 'M';
     const coefIdade = homem ? 11.49 : 17.04;
     const coefFC = homem ? 0.378 : 0.138;
     const vo2i = 138.1 - coefIdade * Math.log(idade) + coefFC * fc;
     setCalc('vo2', Math.round(vo2i * bsa), vo2i * bsa);
+  } else {
+    // Dehmer: 125 mL/min/m². Erro aleatório de ±25%, mas sem a deriva etária
+    // da LaFarge, que foi derivada em 3–40 anos e despenca fora disso.
+    setCalc('vo2', Math.round(125 * bsa), 125 * bsa);
   }
+  avaliarVO2();
   calcularFickDC();
   calcularQpQs();
 }
@@ -1010,7 +1070,7 @@ function atualizarInterpretacao() {
     linhas.push(`<div class="leitura ${classe}"><span class="marca"></span><span class="rotulo">${rotulo}</span><span class="nota">${nota}</span></div>`);
 
   if (ciaAtiva()) {
-    const q = num('qpqs');
+    const q = calc('qpqs');
     if (!isNaN(q)) {
       if (q < 1) push(`Qp/Qs ${fmt(q, 2)}`, 'alerta', 'shunt líquido direita→esquerda — avaliar fisiologia de Eisenmenger');
       else if (q < 1.5) push(`Qp/Qs ${fmt(q, 2)}`, 'ok', 'shunt sem repercussão hemodinâmica (< 1,5)');
@@ -1019,7 +1079,7 @@ function atualizarInterpretacao() {
     }
   }
 
-  const rvp = num('rvp');
+  const rvp = calc('rvp');
   if (!isNaN(rvp)) {
     const [c, n] = faixa(rvp, [
       [2, 'ok', 'normal (< 2 WU)'],
@@ -1030,7 +1090,7 @@ function atualizarInterpretacao() {
     push(`RVP ${fmt(rvp, 1)} WU`, c, n);
   }
 
-  const papm = num('papm');
+  const papm = calc('papm');
   if (!isNaN(papm) && papm > 20) {
     const poap = num('poap');
     let n = 'hipertensão pulmonar (PAPm > 20 mmHg)';
@@ -1038,7 +1098,7 @@ function atualizarInterpretacao() {
     push(`PAPm ${papm} mmHg`, 'atencao', n);
   }
 
-  const ic = num('ic');
+  const ic = calc('ic');
   if (!isNaN(ic) && ic < 2.2) push(`IC ${fmt(ic, 1)} L/min/m²`, 'alerta', 'baixo débito (< 2,2 L/min/m²)');
 
   document.getElementById('interpretacao').innerHTML = linhas.join('');
@@ -1098,8 +1158,27 @@ document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
   });
 });
 
+// Trocar o método muda a procedência do DC. Descartar a família inteira, pela
+// mesma razão que o toggle da CIA já faz: senão o laudo rotula um número de
+// termodiluição como Fick, e vice-versa.
+function descartarFamiliaDC() {
+  ['dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'].forEach(id => {
+    const el = document.getElementById(id);
+    el.dataset.manual = '';
+    el.classList.remove('manual');
+    el.value = '';
+    delete PRECISO[id];
+  });
+}
+
 document.querySelectorAll('input[name="dcmethod"]').forEach(radio => {
-  radio.addEventListener('change', () => { atualizarFickExtra(); calcularFickDC(); atualizarInterpretacao(); });
+  radio.addEventListener('change', () => {
+    descartarFamiliaDC();
+    atualizarFickExtra();
+    calcularFickDC();
+    calcularQpQs();
+    atualizarInterpretacao();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1180,8 +1259,16 @@ document.querySelectorAll('input[type="text"]').forEach(i => i.addEventListener(
 document.querySelectorAll('input[type="radio"], #cia-ativo').forEach(i => i.addEventListener('change', invalidarLaudo));
 
 function atualizarModoVO2() {
-  document.getElementById('vo2').readOnly = vo2Estimado();
+  const estimado = vo2Estimado();
+  document.getElementById('vo2').readOnly = estimado;
+  // Em "Medido" o valor cheio da estimativa anterior tem de sair de cena, senão
+  // calc('vo2') continuaria devolvendo a estimativa velha e o DC sairia dela,
+  // com o laudo dizendo "medido". Não usar dataset.manual aqui: travaria o
+  // campo e a estimativa nunca voltaria ao selecionar "Estimado".
+  if (!estimado) delete PRECISO['vo2'];
   calcularVO2();
+  calcularFickDC();
+  calcularQpQs();
   atualizarInterpretacao();
 }
 
@@ -1209,7 +1296,7 @@ function gerarLaudo() {
   const gtp = (!isNaN(papm) && !isNaN(poap)) ? String(Math.round(papm - poap)) : '___';
   const bsa = calcularBSA();
   const sc = isNaN(bsa) ? '___' : bsa.toFixed(2).replace('.', ',');
-  const origemVO2 = vo2Estimado() ? 'estimado, LaFarge' : 'medido';
+  const origemVO2 = { dehmer: 'estimado, 125 mL/min/m²', lafarge: 'estimado, LaFarge', medido: 'medido' }[modoVO2()];
 
   const cabecalho =
 `Cateterismo cardíaco direito
@@ -1226,16 +1313,18 @@ Qp ${val('qp')} L/min; Qs ${val('qs')} L/min; Qp/Qs ${val('qpqs')}
 DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VS ${val('vs')} mL/bat; VSi ${val('vsi')} mL/bat/m²
 RVP ${val('rvp')} WU; RVS ${val('rvs')} dyn·s·cm⁻⁵
 Método: Hb ${val('hb')} g/dL; VO2 ${val('vo2')} mL/min (${origemVO2}); SC ${sc} m² (Du Bois); venosa mista ${val('mv')}% (Flamm); RVP calculada sobre o Qp.`;
-    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'prad', 'paps', 'papd', 'poap',
-                    'svc', 'ivc', 'spv', 'spa', 'hb', 'vo2',
+    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'pam', 'prad', 'paps', 'papd', 'papm', 'poap',
+                    'svc', 'ivc', 'spv', 'spa', 'mv', 'hb', 'vo2',
                     'qp', 'qs', 'qpqs', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'];
+    if (o2mode === 'o2') obrigatorios.push('o2lmin');
   } else {
     texto =
 `${cabecalho}
 DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VSi ${val('vsi')} mL/bat/m²;
 RVP ${val('rvp')} WU; RVS ${val('rvs')} dyn·s·cm⁻⁵.`;
-    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'prad', 'paps', 'papd', 'poap',
+    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'pam', 'prad', 'paps', 'papd', 'papm', 'poap',
                     'dc', 'ic', 'vsi', 'rvp', 'rvs'];
+    if (o2mode === 'o2') obrigatorios.push('o2lmin');
   }
 
   // Nomear os campos em falta e destacá-los: "8 campos vazios" obriga a caçar
@@ -1402,6 +1491,166 @@ document.getElementById('vo2').readOnly = vo2Estimado();
 atualizarInterpretacao();
 document.querySelectorAll('input[type="text"]').forEach(i => i.addEventListener('input', salvarEstado));
 document.querySelectorAll('input[type="radio"], #cia-ativo').forEach(i => i.addEventListener('change', salvarEstado));
+
+// ---------------------------------------------------------------------------
+// Autoteste — abra a página com ?teste=1
+// Existe porque o coeficiente feminino da LaFarge esteve errado por semanas e
+// passou por três revisões humanas. Uma asserção de duas linhas teria pego.
+// ---------------------------------------------------------------------------
+
+function executarTestes() {
+  const casos = [];
+  const T = (nome, fn) => casos.push([nome, fn]);
+  const set = (id, v) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input')); };
+  const pick = (nome, v) => { const e = document.querySelector(`input[name="${nome}"][value="${v}"]`); e.checked = true; e.dispatchEvent(new Event('change')); };
+  const cia = v => { const e = document.getElementById('cia-ativo'); e.checked = v; e.dispatchEvent(new Event('change')); };
+  const g = id => document.getElementById(id).value;
+  const preencher = o => Object.keys(o).forEach(k => set(k, o[k]));
+
+  function zerar() {
+    cia(false);
+    document.querySelectorAll('input[type="text"]').forEach(i => {
+      i.value = ''; i.dataset.manual = ''; i.classList.remove('manual', 'invalido', 'faltando');
+      delete PRECISO[i.id];
+    });
+    pick('o2mode', 'aa'); pick('sexo', 'M'); pick('vo2mode', 'dehmer');
+    document.querySelector('input[name="dcmethod"][value="Termodiluição"]').disabled = false;
+    pick('dcmethod', 'Termodiluição');
+  }
+
+  const base = { peso: '70', altura: '170', fc: '78', idade: '45', so2: '98', hb: '14',
+                 pas: '120', pad: '80', paps: '60', papd: '37', poap: '12', prad: '6' };
+  const oxi = { svc: '70', ivc: '74', spv: '98', spa: '85' };
+
+  // --- VO2: os dois coeficientes da LaFarge mudam com o sexo ---
+  T('LaFarge homem 66a FC88 SC1,997 = 246', () => {
+    zerar(); preencher({ peso: '84', altura: '175', fc: '88', idade: '66' });
+    pick('sexo', 'M'); pick('vo2mode', 'lafarge');
+    return [g('vo2'), '246'];
+  });
+  T('LaFarge mulher 66a FC88 SC1,997 = 157 (nao 200)', () => {
+    zerar(); preencher({ peso: '84', altura: '175', fc: '88', idade: '66' });
+    pick('sexo', 'F'); pick('vo2mode', 'lafarge');
+    return [g('vo2'), '157'];
+  });
+  T('Dehmer = 125 x SC', () => {
+    zerar(); preencher({ peso: '70', altura: '170' }); pick('vo2mode', 'dehmer');
+    return [g('vo2'), String(Math.round(125 * 0.007184 * Math.pow(70, 0.425) * Math.pow(170, 0.725)))];
+  });
+  T('VO2 medido nao e sobrescrito pela estimativa (bug do PRECISO)', () => {
+    zerar(); preencher({ peso: '70', altura: '170', fc: '80', idade: '60', hb: '14', so2: '95', svo2: '65' });
+    pick('dcmethod', 'Fick'); pick('vo2mode', 'medido'); set('vo2', '300');
+    const esperado = (300 / (0.134 * 14 * 30)).toFixed(1);
+    return [g('dc'), esperado];
+  });
+
+  // --- Precisao: nada de reler valor arredondado ---
+  T('IC usa o Qs cheio, nao o DC arredondado', () => {
+    zerar(); preencher({ peso: '82', altura: '168', fc: '88', idade: '52', so2: '97', hb: '13.2' });
+    pick('sexo', 'F'); cia(true);
+    preencher({ svc: '68', ivc: '72', spv: '97', spa: '84' });
+    const bsa = 0.007184 * Math.pow(82, 0.425) * Math.pow(168, 0.725);
+    const qs = (125 * bsa) / (0.134 * 13.2 * (97 - 69));
+    return [g('ic'), (qs / bsa).toFixed(1)];
+  });
+
+  // --- RVP usa o fluxo pulmonar ---
+  T('com CIA a RVP divide pelo Qp, nao pelo Qs', () => {
+    zerar(); preencher(base); cia(true); preencher(oxi);
+    const gtp = (60 + 2 * 37) / 3 - 12;
+    return [g('rvp'), (gtp / parseFloat(g('qp'))).toFixed(1)];
+  });
+  T('sem CIA a RVP divide pelo DC', () => {
+    zerar(); preencher(base); set('dc', '5.2');
+    return [g('rvp'), (((60 + 2 * 37) / 3 - 12) / 5.2).toFixed(1)];
+  });
+
+  // --- Qp/Qs independe de VO2 e Hb ---
+  T('Qp/Qs sai so com as saturacoes', () => {
+    zerar(); preencher({ so2: '98' }); cia(true); preencher(oxi);
+    return [g('qpqs'), ((98 - 71) / (98 - 85)).toFixed(2)];
+  });
+  T('Qp/Qs nao muda ao trocar a Hb', () => {
+    zerar(); preencher(base); cia(true); preencher(oxi);
+    const antes = g('qpqs'); set('hb', '9');
+    return [g('qpqs'), antes];
+  });
+
+  // --- Guardas ---
+  T('gradiente negativo nao produz RVP', () => {
+    zerar(); preencher(base); set('dc', '5'); set('poap', '55');
+    return [g('rvp'), ''];
+  });
+  T('PAM menor que pressao de AD nao produz RVS', () => {
+    zerar(); preencher(base); set('dc', '5'); set('prad', '40'); set('pas', '30'); set('pad', '20');
+    return [g('rvs'), ''];
+  });
+  T('Hb zero nao produz Infinity', () => {
+    zerar(); preencher(base); pick('dcmethod', 'Fick'); set('svo2', '70'); set('hb', '0');
+    return [g('dc'), ''];
+  });
+  T('veia pulmonar abaixo da arteria nao calcula', () => {
+    zerar(); preencher(base); cia(true); preencher({ ...oxi, spv: '80', spa: '95' });
+    return [g('qpqs'), ''];
+  });
+
+  // --- Procedencia do DC ---
+  T('trocar Fick->Termodiluicao descarta o DC anterior', () => {
+    zerar(); preencher(base); pick('dcmethod', 'Fick'); set('svo2', '65');
+    if (!g('dc')) return ['DC vazio antes da troca', 'DC preenchido'];
+    pick('dcmethod', 'Termodiluição');
+    return [g('dc'), ''];
+  });
+  T('desmarcar CIA descarta os derivados do Qs', () => {
+    zerar(); preencher(base); cia(true); preencher(oxi);
+    if (!g('dc')) return ['DC vazio antes de desmarcar', 'DC preenchido'];
+    cia(false);
+    return [g('dc') + g('ic') + g('rvp'), ''];
+  });
+
+  // --- Derivados limpam quando a entrada some ---
+  T('apagar a FC limpa VS e VSi', () => {
+    zerar(); preencher(base); set('dc', '5'); set('fc', '');
+    return [g('vs') + g('vsi'), ''];
+  });
+
+  // --- Edicao manual ---
+  T('Qs editado a mao manda no DC', () => {
+    zerar(); preencher(base); cia(true); preencher(oxi); set('qs', '3.5');
+    return [g('dc'), '3.5'];
+  });
+  T('DC editado a mao resiste a recalculo', () => {
+    zerar(); preencher(base); cia(true); preencher(oxi); set('dc', '4.0'); set('spa', '86');
+    return [g('dc'), '4.0'];
+  });
+
+  const linhas = casos.map(([nome, fn]) => {
+    let obtido, esperado, erro = null;
+    try { [obtido, esperado] = fn(); } catch (e) { erro = e.message; }
+    const ok = !erro && String(obtido) === String(esperado);
+    return { nome, ok, obtido, esperado, erro };
+  });
+  zerar();
+  try { localStorage.removeItem(CHAVE); } catch (e) { /* sem storage */ }
+
+  const falhas = linhas.filter(l => !l.ok).length;
+  document.body.innerHTML =
+    `<div class="sheet"><h1>Autoteste</h1><p class="lede">${linhas.length - falhas} de ${linhas.length} passaram.</p>` +
+    `<div class="panel">` + linhas.map(l =>
+      `<div class="leitura ${l.ok ? 'ok' : 'alerta'}"><span class="marca"></span>` +
+      `<span class="rotulo">${l.ok ? 'ok' : 'FALHOU'}</span><span class="nota">${l.nome}` +
+      (l.ok ? '' : ` &mdash; obtido <strong>${l.erro || l.obtido}</strong>, esperado <strong>${l.esperado}</strong>`) +
+      `</span></div>`).join('') + `</div></div>`;
+  return { total: linhas.length, falhas, linhas };
+}
+
+// Só dispara em endereço de verdade. Quando a página é servida como data: URL
+// (painéis de pré-visualização), o próprio conteúdo vira "query string" e um
+// gatilho ingênuo rodaria o teste sozinho, substituindo o formulário.
+if (/^(https?|file):$/.test(location.protocol) &&
+    new URLSearchParams(location.search).get('teste') === '1') {
+  executarTestes();
+}
 </script>
 
 </body>
