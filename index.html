@@ -532,7 +532,7 @@
         <input type="text" id="prad" inputmode="decimal" placeholder="&#8212;">
       </div>
     </div>
-    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">A PAPm é estimada por (sistólica + 2&times;diastólica) / 3 &mdash; isso é mnemônico, não medida. Se o sistema mostrar a média integrada da curva, digite-a por cima. Estes valores entram no laudo e alimentam a RVP e a RVS.</p>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">A PAPm é estimada por (sistólica + 2&times;diastólica) / 3 &mdash; isso é mnemônico, não medida. Se o sistema mostrar a média integrada da curva, digite-a por cima. Estes valores não entram no texto do laudo &mdash; alimentam a RVP e a RVS.</p>
     <p class="aviso" id="pressao-aviso"></p>
   </div>
 
@@ -1291,17 +1291,13 @@ function gerarLaudo() {
   const modoTexto = o2mode === 'aa' ? 'aa' : `O2 ${val('o2lmin')} L/min`;
   const dcMethod = document.querySelector('input[name="dcmethod"]:checked').value;
 
-  const papm = num('papm');
-  const poap = num('poap');
-  const gtp = (!isNaN(papm) && !isNaN(poap)) ? String(Math.round(papm - poap)) : '___';
   const bsa = calcularBSA();
   const sc = isNaN(bsa) ? '___' : bsa.toFixed(2).replace('.', ',');
   const origemVO2 = { dehmer: 'estimado, 125 mL/min/m²', lafarge: 'estimado, LaFarge', medido: 'medido' }[modoVO2()];
 
   const cabecalho =
 `Cateterismo cardíaco direito
-Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoTexto}]; PA ${val('pas')}/${val('pad')} (${val('pam')}) mmHg; FC ${val('fc')} bpm;
-Pressões: AD ${val('prad')} mmHg; AP ${val('paps')}/${val('papd')} (${val('papm')}) mmHg; POAP ${val('poap')} mmHg; GTP ${gtp} mmHg;`;
+Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoTexto}]; PA ${val('pas')}/${val('pad')} (${val('pam')}) mmHg; FC ${val('fc')} bpm;`;
 
   let texto;
   let obrigatorios;
@@ -1313,7 +1309,7 @@ Qp ${val('qp')} L/min; Qs ${val('qs')} L/min; Qp/Qs ${val('qpqs')}
 DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VS ${val('vs')} mL/bat; VSi ${val('vsi')} mL/bat/m²
 RVP ${val('rvp')} WU; RVS ${val('rvs')} dyn·s·cm⁻⁵
 Método: Hb ${val('hb')} g/dL; VO2 ${val('vo2')} mL/min (${origemVO2}); SC ${sc} m² (Du Bois); venosa mista ${val('mv')}% (Flamm); RVP calculada sobre o Qp.`;
-    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'pam', 'prad', 'paps', 'papd', 'papm', 'poap',
+    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'pam',
                     'svc', 'ivc', 'spv', 'spa', 'mv', 'hb', 'vo2',
                     'qp', 'qs', 'qpqs', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'];
     if (o2mode === 'o2') obrigatorios.push('o2lmin');
@@ -1322,7 +1318,7 @@ Método: Hb ${val('hb')} g/dL; VO2 ${val('vo2')} mL/min (${origemVO2}); SC ${sc}
 `${cabecalho}
 DC (${dcMethod}) ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VSi ${val('vsi')} mL/bat/m²;
 RVP ${val('rvp')} WU; RVS ${val('rvs')} dyn·s·cm⁻⁵.`;
-    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'pam', 'prad', 'paps', 'papd', 'papm', 'poap',
+    obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'pam',
                     'dc', 'ic', 'vsi', 'rvp', 'rvs'];
     if (o2mode === 'o2') obrigatorios.push('o2lmin');
   }
