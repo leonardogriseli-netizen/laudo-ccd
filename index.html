@@ -948,6 +948,29 @@ function calcularFickDC() {
   calcularRVS();
 }
 
+// Ordem esperada das saturações no cateterismo direito com shunt:
+//   VP > Ao > AP > VCI > VCS
+// Cada inversão tem uma causa fisiológica específica. Nomeá-la vale mais do que
+// um "valor inesperado", porque diz onde reamostrar.
+function avaliarOrdemSaturacoes() {
+  const vp = num('spv'), ao = num('so2'), ap = num('spa'), vci = num('ivc'), vcs = num('svc');
+  const av = [];
+
+  if (!isNaN(ao) && !isNaN(vp) && ao > vp) {
+    av.push('Ao acima da veia pulmonar: o sangue arterial sistêmico é o próprio sangue que sai do pulmão, já diluído pelo retorno brônquico e de Tebésio — não pode estar mais saturado. Reveja as duas amostras.');
+  }
+  if (!isNaN(ap) && !isNaN(ao) && ap > ao) {
+    av.push('Artéria pulmonar acima da Ao: o sangue que vai ao pulmão estaria mais oxigenado que o que irriga o corpo. Isso ocorre em fisiologia de transposição ou shunt bidirecional volumoso; fora desses cenários, suspeite de troca de seringas.');
+  }
+  if (!isNaN(vci) && !isNaN(ap) && vci > ap) {
+    av.push('Artéria pulmonar abaixo da VCI: com shunt esquerda→direita espera-se step-up nesse nível. AP menor que a VCI sugere shunt sem repercussão, amostra colhida antes da mistura, ou troca de seringas.');
+  }
+  if (!isNaN(vcs) && !isNaN(vci) && vcs > vci) {
+    av.push('VCS acima da VCI: o habitual é a VCI ficar alguns pontos acima, pela contribuição do sangue renal. A inversão sugere amostra de VCI colhida em veia hepática, extração esplâncnica alta por baixo débito, ou troca de seringas.');
+  }
+  return av;
+}
+
 function calcularMV() {
   if (!ciaAtiva()) return;
   const svc = num('svc');
@@ -987,6 +1010,7 @@ function calcularQpQs() {
     avisos.push('Diferença veia − artéria pulmonar de apenas ' + difPulm.toFixed(1) +
       ' ponto(s): o Qp/Qs é muito sensível a erro de amostragem nessa faixa.');
   }
+  avisos.push(...avaliarOrdemSaturacoes());
 
   // A razão Qp/Qs depende só das saturações — VO2 e Hb se cancelam.
   if (pulmOk && sistOk) {
@@ -1297,6 +1321,14 @@ function gerarLaudo() {
   const sc = isNaN(bsa) ? '___' : bsa.toFixed(2).replace('.', ',');
   const origemVO2 = { dehmer: 'estimado, 125 mL/min/m²', lafarge: 'estimado, LaFarge', medido: 'medido' }[modoVO2()];
 
+  // No laudo de CIA a RVS sai em Wood units, para ficar na mesma escala da RVP
+  // (é assim que se compara Rp/Rs na discussão de operabilidade).
+  const rvsBruta = calc('rvs');
+  const rvsWU = isNaN(rvsBruta) ? '___' : (rvsBruta / 80).toFixed(1).replace('.', ',');
+  const vo2Texto = modoVO2() === 'medido'
+    ? `VO2 medido ${val('vo2')} mL/min`
+    : `VO2 estimado ${val('vo2')} mL/min (${modoVO2() === 'lafarge' ? 'LaFarge' : '125 mL/min/m²'})`;
+
   const cabecalho =
 `Cateterismo cardíaco direito
 Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoTexto}]; PA ${val('pas')}/${val('pad')} (${val('pam')}) mmHg; FC ${val('fc')} bpm;`;
@@ -1306,14 +1338,11 @@ Peso ${val('peso')} kg; Altura ${val('altura')} cm; SO2 ${val('so2')} % [${modoT
   if (ciaAtiva()) {
     texto =
 `${cabecalho}
-Oximetrias: VCS ${val('svc')}% / VCI ${val('ivc')}% / VP ${val('spv')}% / AP ${val('spa')}% / Ao ${val('so2')}%
 Qp ${val('qp')} L/min; Qs ${val('qs')} L/min; Qp/Qs ${val('qpqs')}
-DC por ${metodoTexto} ${val('dc')} L/min; IC ${val('ic')} L/min/m²; VS ${val('vs')} mL/bat; VSi ${val('vsi')} mL/bat/m²
-RVP ${val('rvp')} WU; RVS ${val('rvs')} dynas
-Método: Hb ${val('hb')} g/dL; VO2 ${val('vo2')} mL/min (${origemVO2}); SC ${sc} m² (Du Bois); venosa mista ${val('mv')}% (Flamm); RVP calculada sobre o Qp.`;
+RVP ${val('rvp')} WU; RVS ${rvsWU} WU
+Hb ${val('hb')} g/dL; ${vo2Texto}`;
     obrigatorios = ['peso', 'altura', 'fc', 'so2', 'pas', 'pad', 'pam',
-                    'svc', 'ivc', 'spv', 'spa', 'mv', 'hb', 'vo2',
-                    'qp', 'qs', 'qpqs', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'];
+                    'hb', 'vo2', 'qp', 'qs', 'qpqs', 'rvp', 'rvs'];
     if (o2mode === 'o2') obrigatorios.push('o2lmin');
   } else {
     texto =
@@ -1620,6 +1649,34 @@ function executarTestes() {
   T('DC editado a mao resiste a recalculo', () => {
     zerar(); preencher(base); cia(true); preencher(oxi); set('dc', '4.0'); set('spa', '86');
     return [g('dc'), '4.0'];
+  });
+
+  // --- Ordem das saturacoes: VP > Ao > AP > VCI > VCS ---
+  const temAviso = t => document.getElementById('cia-aviso').textContent.includes(t);
+  T('ordem correta das saturacoes nao gera aviso', () => {
+    zerar(); preencher(base); cia(true);
+    preencher({ so2: '98', spv: '99', spa: '85', ivc: '74', svc: '70' });
+    return [document.getElementById('cia-aviso').textContent, ''];
+  });
+  T('Ao acima da veia pulmonar avisa', () => {
+    zerar(); preencher(base); cia(true);
+    preencher({ so2: '99', spv: '95', spa: '85', ivc: '74', svc: '70' });
+    return [temAviso('Ao acima da veia pulmonar'), true];
+  });
+  T('AP acima da Ao avisa', () => {
+    zerar(); preencher(base); cia(true);
+    preencher({ so2: '90', spv: '99', spa: '95', ivc: '74', svc: '70' });
+    return [temAviso('Artéria pulmonar acima da Ao'), true];
+  });
+  T('AP abaixo da VCI avisa', () => {
+    zerar(); preencher(base); cia(true);
+    preencher({ so2: '98', spv: '99', spa: '70', ivc: '78', svc: '66' });
+    return [temAviso('Artéria pulmonar abaixo da VCI'), true];
+  });
+  T('VCS acima da VCI avisa', () => {
+    zerar(); preencher(base); cia(true);
+    preencher({ so2: '98', spv: '99', spa: '85', ivc: '68', svc: '76' });
+    return [temAviso('VCS acima da VCI'), true];
   });
 
   // --- Limpar tem de ir ate o fim ---
