@@ -1407,7 +1407,7 @@ function limparForm() {
   document.querySelector('input[name="dcmethod"][value="Termodiluição"]').disabled = false;
   document.querySelector('input[name="dcmethod"][value="Termodiluição"]').checked = true;
   document.querySelector('input[name="sexo"][value="M"]').checked = true;
-  document.querySelector('input[name="vo2mode"][value="estimado"]').checked = true;
+  document.querySelector('input[name="vo2mode"][value="dehmer"]').checked = true;
   document.getElementById('vo2').readOnly = true;
   document.getElementById('termo-aviso').textContent = '';
   document.getElementById('cia-aviso').textContent = '';
@@ -1618,6 +1618,22 @@ function executarTestes() {
   T('DC editado a mao resiste a recalculo', () => {
     zerar(); preencher(base); cia(true); preencher(oxi); set('dc', '4.0'); set('spa', '86');
     return [g('dc'), '4.0'];
+  });
+
+  // --- Limpar tem de ir ate o fim ---
+  // Ja quebrou: limparForm procurava um valor de vo2mode que deixara de existir,
+  // lancava no meio e deixava CIA marcada, laudo na tela e localStorage intacto.
+  T('Limpar zera os campos, o modo CIA e o laudo', () => {
+    zerar(); preencher(base); cia(true); preencher(oxi);
+    const confirmar = window.confirm;
+    window.confirm = () => true;
+    let erro = '';
+    try { limparForm(); } catch (e) { erro = 'lancou: ' + e.message; }
+    window.confirm = confirmar;
+    const sobrou = g('peso') + g('dc') + g('qpqs') +
+      (document.getElementById('cia-ativo').checked ? ' CIA-marcada' : '') +
+      (document.getElementById('output').textContent ? ' laudo-na-tela' : '');
+    return [erro + sobrou, ''];
   });
 
   const linhas = casos.map(([nome, fn]) => {
