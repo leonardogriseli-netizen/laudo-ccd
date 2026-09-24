@@ -693,7 +693,10 @@ const FAIXAS = {
   pas: [0, 300], pad: [0, 250], pam: [0, 300],
   paps: [0, 200], papd: [0, 150], papm: [0, 150], poap: [0, 60], prad: [0, 50],
   vo2: [30, 900], hb: [3, 25], svo2: [15, 100],
-  svc: [15, 100], ivc: [15, 100], mv: [15, 100], spv: [60, 100], spa: [15, 100]
+  svc: [15, 100], ivc: [15, 100], mv: [15, 100], spv: [60, 100], spa: [15, 100],
+  // Calculados: são os que o operador sobrescreve com pressa ("42" no DC).
+  dc: [1, 15], ic: [0.8, 8], vs: [10, 200], vsi: [10, 100],
+  qp: [0.5, 25], qs: [0.5, 15], qpqs: [0.3, 8], rvp: [0, 30], rvs: [200, 4000]
 };
 
 // Diferença arteriovenosa mínima aceita: abaixo da resolução do co-oxímetro o
@@ -736,13 +739,17 @@ const PRECISO = {};
 
 function setCalc(id, exibido, preciso) {
   if (travado(id)) return;
-  document.getElementById(id).value = exibido;
+  const el = document.getElementById(id);
+  el.value = exibido;
   PRECISO[id] = (preciso !== undefined) ? preciso : parseFloat(String(exibido).replace(',', '.'));
+  el.classList.toggle('invalido', foraDeFaixa(id));
 }
 
 function limparCalc(id) {
   if (travado(id)) return;
-  document.getElementById(id).value = '';
+  const el = document.getElementById(id);
+  el.value = '';
+  el.classList.remove('invalido');
   delete PRECISO[id];
 }
 
@@ -1114,12 +1121,29 @@ function atualizarInterpretacao() {
     push(`RVP ${fmt(rvp, 1)} WU`, c, n);
   }
 
+  // Definição hemodinâmica da ESC/ERS 2022: HP = PAPm > 20. Pré-capilar exige
+  // os TRÊS critérios — PAPm > 20, POAP ≤ 15 e RVP > 2 WU. Sem o terceiro, uma
+  // CIA de hiperfluxo seria rotulada como doença vascular pulmonar.
   const papm = calc('papm');
   if (!isNaN(papm) && papm > 20) {
     const poap = num('poap');
-    let n = 'hipertensão pulmonar (PAPm > 20 mmHg)';
-    if (!isNaN(poap)) n += poap > 15 ? ' de componente pós-capilar (POAP > 15)' : ' pré-capilar (POAP ≤ 15)';
-    push(`PAPm ${papm} mmHg`, 'atencao', n);
+    const rvpHP = calc('rvp');
+    let n;
+    if (isNaN(poap) || isNaN(rvpHP)) {
+      n = 'hipertensão pulmonar (PAPm > 20 mmHg) — a classificação exige POAP e RVP';
+    } else if (poap <= 15 && rvpHP > 2) {
+      n = 'HP pré-capilar (POAP ≤ 15 e RVP > 2 WU — ESC/ERS 2022)';
+    } else if (poap > 15 && rvpHP > 2) {
+      n = 'HP combinada pré e pós-capilar (POAP > 15 e RVP > 2 WU)';
+    } else if (poap > 15) {
+      n = 'HP pós-capilar isolada (POAP > 15 e RVP ≤ 2 WU)';
+    } else {
+      const qpqs = calc('qpqs');
+      n = (ciaAtiva() && !isNaN(qpqs) && qpqs >= 1.5)
+        ? 'HP de hiperfluxo: PAPm elevada pelo excesso de fluxo pulmonar, com RVP ≤ 2 WU — sem doença vascular pulmonar; não contraindica o fechamento'
+        : 'PAPm > 20 com POAP ≤ 15 e RVP ≤ 2 WU: não preenche critério de HP pré-capilar (ESC/ERS 2022) — considerar estado de alto débito';
+    }
+    push(`PAPm ${Math.round(papm)} mmHg`, 'atencao', n);
   }
 
   const ic = calc('ic');
@@ -1244,6 +1268,7 @@ DERIVADOS.forEach(id => {
     const manual = el.value.trim() !== '';
     el.dataset.manual = manual ? '1' : '';
     el.classList.toggle('manual', manual);
+    el.classList.toggle('invalido', foraDeFaixa(id));
     // O valor digitado é a nova verdade: descarta a precisão do cálculo antigo.
     delete PRECISO[id];
   });
@@ -1357,7 +1382,10 @@ RVP ${val('rvp')} WU; RVS ${val('rvs')} dynas.`;
   // Nomear os campos em falta e destacá-los: "8 campos vazios" obriga a caçar
   // o problema em oito telas de formulário.
   const vazios = obrigatorios.filter(id => document.getElementById(id).value.trim() === '');
-  const forai = Object.keys(FAIXAS).filter(id => foraDeFaixa(id));
+  // Só campos visíveis: acusar valor implausível num campo escondido (ex.: módulo
+  // de CIA desmarcado) deixa o operador sem ter onde corrigir.
+  const forai = Object.keys(FAIXAS).filter(id =>
+    document.getElementById(id).offsetParent !== null && foraDeFaixa(id));
   document.querySelectorAll('.faltando').forEach(e => e.classList.remove('faltando'));
   vazios.forEach(id => document.getElementById(id).classList.add('faltando'));
 
@@ -1510,7 +1538,27 @@ function restaurarEstado() {
     document.getElementById('termo-aviso').textContent = 'Desabilitada com CIA ativo: o indicador da termodiluição recircula pelo shunt, tornando a medida não confiável. DC e IC usam o Qs calculado pela oximetria.';
   }
   atualizarFickExtra();
+  document.getElementById('vo2').readOnly = vo2Estimado();
+  // O localStorage guarda só o texto arredondado dos campos. Sem refazer a
+  // cadeia, os cálculos seguintes releriam esses arredondamentos e o mesmo
+  // exame daria números diferentes antes e depois de um F5.
+  recalcularTudo();
   document.getElementById('banner-restaurado').style.display = 'block';
+}
+
+// Refaz todos os derivados a partir das entradas. Campos editados à mão ficam
+// como estão (setCalc não escreve em campo travado).
+function recalcularTudo() {
+  calcularPAM();
+  calcularPAPM();
+  calcularVO2();
+  calcularFickDC();
+  calcularMV();
+  calcularQpQs();
+  calcularVSI();
+  calcularRVP();
+  calcularRVS();
+  atualizarInterpretacao();
 }
 
 restaurarEstado();
@@ -1677,6 +1725,42 @@ function executarTestes() {
     zerar(); preencher(base); cia(true);
     preencher({ so2: '98', spv: '99', spa: '85', ivc: '68', svc: '76' });
     return [temAviso('VCS acima da VCI'), true];
+  });
+
+  // --- Classificacao de HP (ESC/ERS 2022: pre-capilar exige RVP > 2 WU) ---
+  const leitura = () => document.getElementById('interpretacao').textContent;
+  T('HP com RVP <= 2 WU nao e rotulada pre-capilar', () => {
+    zerar(); preencher({ ...base, paps: '30', papd: '18', poap: '10' }); set('dc', '8');
+    return [leitura().includes('HP pré-capilar (POAP'), false];
+  });
+  T('HP com POAP <= 15 e RVP > 2 WU e pre-capilar', () => {
+    zerar(); preencher(base); set('dc', '5');
+    return [leitura().includes('HP pré-capilar (POAP'), true];
+  });
+  T('CIA com Qp/Qs alto e RVP baixa e HP de hiperfluxo', () => {
+    zerar(); preencher({ ...base, paps: '30', papd: '18', poap: '10' }); cia(true); preencher(oxi);
+    return [leitura().includes('hiperfluxo'), true];
+  });
+
+  // --- Faixas nos calculados ---
+  T('DC digitado como 42 fica marcado implausivel', () => {
+    zerar(); preencher(base); set('dc', '42');
+    return [document.getElementById('dc').classList.contains('invalido'), true];
+  });
+
+  // --- Restaurar o exame reconstroi a precisao ---
+  // Testa o mecanismo (recalcularTudo, chamado por restaurarEstado) e nao o
+  // localStorage, que nao existe em paginas servidas como data: URL.
+  T('depois de um F5 a RVS nao muda', () => {
+    zerar(); pick('sexo', 'F');
+    preencher({ peso: '82', altura: '168', fc: '88', idade: '52', so2: '97', hb: '13.2',
+                pas: '138', pad: '84', prad: '9' });
+    cia(true); preencher({ svc: '68', ivc: '72', spv: '97', spa: '84' });
+    const antes = g('rvs');
+    Object.keys(PRECISO).forEach(k => delete PRECISO[k]);   // o que um F5 apaga
+    recalcularTudo();                                        // o que restaurarEstado faz
+    set('prad', '9');                                        // qualquer toque que recalcule
+    return [g('rvs'), antes];
   });
 
   // --- Limpar tem de ir ate o fim ---
