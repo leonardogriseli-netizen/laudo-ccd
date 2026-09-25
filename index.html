@@ -303,6 +303,21 @@
     .hemo-curto { display: inline; }
   }
 
+  .guia {
+    margin: 16px 0 0;
+    padding: 12px 14px;
+    background: var(--surface-alt);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+  .guia p { margin: 0 0 6px; color: var(--text); }
+  .guia ul { margin: 0; padding-left: 18px; }
+  .guia li + li { margin-top: 6px; }
+  .guia li strong { color: var(--text); font-weight: 600; }
+
   .aviso {
     color: var(--danger);
     font-size: 0.78rem;
@@ -590,8 +605,16 @@
       <div class="field"><label class="sr-only" for="poap">POAP (mmHg)</label><input type="text" id="poap" inputmode="decimal" placeholder="&#8212;"></div>
     </div>
     </div>
-    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Diastólica 1 = nadir protodiastólico; diastólica 2 = pressão diastólica final (Pd2). A média do tronco pulmonar é estimada por (sistólica + 2&times;diastólica) / 3 &mdash; isso é mnemônico, não medida. Se o sistema mostrar a média integrada da curva, digite-a por cima. Estes valores não entram no texto do laudo &mdash; alimentam a RVP e a RVS.</p>
     <p class="aviso" id="pressao-aviso"></p>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Diastólica 1 = nadir protodiastólico; diastólica 2 = pressão diastólica final (Pd2). A média do tronco pulmonar é estimada por (sistólica + 2&times;diastólica) / 3 &mdash; isso é mnemônico, não medida. Se o sistema mostrar a média integrada da curva, digite-a por cima. Estes valores não entram no texto do laudo &mdash; alimentam a RVP e a RVS.</p>
+    <div class="guia">
+      <p><strong>Momento da medida</strong></p>
+      <ul>
+        <li><strong>Todas as pressões:</strong> no fim da expiração espontânea, sem apneia nem Valsalva, com o transdutor zerado no nível médio-torácico (ESC/ERS 2022). Com grande oscilação respiratória (DPOC, obesidade, dispneia), use a média de 3 a 4 ciclos respiratórios.</li>
+        <li><strong>Átrio direito:</strong> média da onda a, logo antes da onda c &mdash; é o fim da diástole, quando a tricúspide está aberta e a pressão do AD equivale à diastólica final do VD. Sem onda a (FA), leia no fim do QRS. Com onda v grande (insuficiência tricúspide importante), a média do ciclo superestima o enchimento do VD.</li>
+        <li><strong>Capilar pulmonar:</strong> média da onda a, logo antes da onda c, equivalente à diastólica final do VE. Sem onda a (FA), leia 130&ndash;200 ms após o início do QRS &mdash; o traçado encunhado chega atrasado em relação ao ECG. Com onda v gigante (insuficiência mitral, VE pouco complacente), a média do ciclo superestima o enchimento do VE: registre a média da onda a e anote o pico da v à parte.</li>
+      </ul>
+    </div>
   </div>
 
   <div class="panel">
