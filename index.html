@@ -258,6 +258,51 @@
     background: color-mix(in srgb, var(--warn) 10%, transparent);
   }
 
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  .hemo-caixa { container-type: inline-size; }
+  .hemo {
+    display: grid;
+    grid-template-columns: minmax(78px, 1.25fr) repeat(4, minmax(0, 1fr));
+    gap: 6px 10px;
+    align-items: end;
+  }
+  .hemo-titulo {
+    grid-column: 2 / -1;
+    text-align: center;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+  }
+  .hemo-cab {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.2;
+    padding-bottom: 2px;
+  }
+  .hemo-local {
+    font-size: 0.85rem;
+    line-height: 1.2;
+    padding-bottom: 9px;
+  }
+  .hemo-vazio {
+    align-self: stretch;
+    min-height: 34px;
+    border-radius: 4px;
+    background: repeating-linear-gradient(135deg, var(--surface-alt) 0 6px, var(--border) 6px 7px);
+  }
+  .hemo .field input[type="text"] { font-size: 0.95rem; min-width: 0; }
+  .hemo-curto { display: none; }
+  /* Mede a própria tabela, não a janela: no painel lateral a janela é larga e a tabela não. */
+  @container (max-width: 600px) {
+    .hemo-longo { display: none; }
+    .hemo-curto { display: inline; }
+  }
+
   .aviso {
     color: var(--danger);
     font-size: 0.78rem;
@@ -429,7 +474,6 @@
 </head>
 <body>
 
-
 <div class="sheet">
   <p class="eyebrow">Hemodinâmica &middot; laboratório de cateterismo</p>
   <h1>Cateterismo Cardíaco Direito</h1>
@@ -510,29 +554,43 @@
 
   <div class="panel">
     <div class="panel-head"><span class="tick"></span><h2>Pressões complementares</h2></div>
-    <div class="grid">
-      <div class="field">
-        <label for="paps">PA pulmonar sistólica (mmHg)</label>
-        <input type="text" id="paps" inputmode="decimal" placeholder="&#8212;">
-      </div>
-      <div class="field">
-        <label for="papd">PA pulmonar diastólica (mmHg)</label>
-        <input type="text" id="papd" inputmode="decimal" placeholder="&#8212;">
-      </div>
-      <div class="field">
-        <label for="papm">PAPm &mdash; média (mmHg)</label>
-        <input type="text" id="papm" inputmode="decimal" placeholder="&#8212;">
-      </div>
-      <div class="field">
-        <label for="poap">POAP (mmHg)</label>
-        <input type="text" id="poap" inputmode="decimal" placeholder="&#8212;">
-      </div>
-      <div class="field">
-        <label for="prad">Pressão de AD (mmHg)</label>
-        <input type="text" id="prad" inputmode="decimal" placeholder="&#8212;">
-      </div>
+    <!-- Mesma grade do polígrafo: cinza = medida que não existe naquela câmara.
+         Os rótulos escondidos dão nome ao campo nos avisos (ver rotulo()). -->
+    <div class="hemo-caixa">
+    <div class="hemo" role="group" aria-label="Pressões por câmara (mmHg)">
+      <div class="hemo-titulo">Pressão (mmHg)</div>
+      <div class="hemo-cab">Local</div>
+      <div class="hemo-cab">Sistólica</div>
+      <div class="hemo-cab"><span class="hemo-longo">Diastólica</span><span class="hemo-curto">Diast.</span> 1</div>
+      <div class="hemo-cab"><span class="hemo-longo">Diastólica</span><span class="hemo-curto">Diast.</span> 2</div>
+      <div class="hemo-cab">Média</div>
+
+      <div class="hemo-local">Átrio direito</div>
+      <div class="hemo-vazio"></div>
+      <div class="hemo-vazio"></div>
+      <div class="hemo-vazio"></div>
+      <div class="field"><label class="sr-only" for="prad">Pressão de AD (mmHg)</label><input type="text" id="prad" inputmode="decimal" placeholder="&#8212;"></div>
+
+      <div class="hemo-local">Ventrículo direito</div>
+      <div class="field"><label class="sr-only" for="vds">VD sistólica (mmHg)</label><input type="text" id="vds" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="field"><label class="sr-only" for="vdd1">VD diastólica 1 (mmHg)</label><input type="text" id="vdd1" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="field"><label class="sr-only" for="vdd2">VD diastólica 2 (mmHg)</label><input type="text" id="vdd2" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="hemo-vazio"></div>
+
+      <div class="hemo-local">Tronco pulmonar</div>
+      <div class="field"><label class="sr-only" for="paps">PA pulmonar sistólica (mmHg)</label><input type="text" id="paps" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="field"><label class="sr-only" for="papd">PA pulmonar diastólica (mmHg)</label><input type="text" id="papd" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="hemo-vazio"></div>
+      <div class="field"><label class="sr-only" for="papm">PAPm &mdash; média (mmHg)</label><input type="text" id="papm" inputmode="decimal" placeholder="&#8212;"></div>
+
+      <div class="hemo-local">Capilar pulmonar</div>
+      <div class="hemo-vazio"></div>
+      <div class="hemo-vazio"></div>
+      <div class="hemo-vazio"></div>
+      <div class="field"><label class="sr-only" for="poap">POAP (mmHg)</label><input type="text" id="poap" inputmode="decimal" placeholder="&#8212;"></div>
     </div>
-    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">A PAPm é estimada por (sistólica + 2&times;diastólica) / 3 &mdash; isso é mnemônico, não medida. Se o sistema mostrar a média integrada da curva, digite-a por cima. Estes valores não entram no texto do laudo &mdash; alimentam a RVP e a RVS.</p>
+    </div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Diastólica 1 = nadir protodiastólico; diastólica 2 = pressão diastólica final (Pd2). A média do tronco pulmonar é estimada por (sistólica + 2&times;diastólica) / 3 &mdash; isso é mnemônico, não medida. Se o sistema mostrar a média integrada da curva, digite-a por cima. Estes valores não entram no texto do laudo &mdash; alimentam a RVP e a RVS.</p>
     <p class="aviso" id="pressao-aviso"></p>
   </div>
 
@@ -692,6 +750,7 @@ const FAIXAS = {
   peso: [25, 250], altura: [120, 220], idade: [12, 110], fc: [25, 220], so2: [40, 100], o2lmin: [0, 60],
   pas: [0, 300], pad: [0, 250], pam: [0, 300],
   paps: [0, 200], papd: [0, 150], papm: [0, 150], poap: [0, 60], prad: [0, 50],
+  vds: [5, 200], vdd1: [-10, 40], vdd2: [0, 50],
   vo2: [30, 900], hb: [3, 25], svo2: [15, 100],
   svc: [15, 100], ivc: [15, 100], mv: [15, 100], spv: [60, 100], spa: [15, 100],
   // Calculados: são os que o operador sobrescreve com pressa ("42" no DC).
@@ -840,6 +899,17 @@ function avaliarPressoes() {
   }
   if (!isNaN(paps) && !isNaN(papd) && papd > paps) av.push('PAP diastólica maior que a sistólica.');
   if (!isNaN(pas) && !isNaN(pad) && pad > pas) av.push('PA diastólica maior que a sistólica.');
+  const vds = num('vds'), vdd1 = num('vdd1'), vdd2 = num('vdd2');
+  if (!isNaN(vds) && ((!isNaN(vdd1) && vdd1 >= vds) || (!isNaN(vdd2) && vdd2 >= vds))) {
+    av.push('Diastólica do VD maior ou igual à sistólica.');
+  }
+  if (!isNaN(vdd1) && !isNaN(vdd2) && vdd1 > vdd2) {
+    av.push('VD diastólica 1 acima da diastólica 2: a D1 é o nadir protodiastólico e a D2 a pressão diastólica final, que é sempre a mais alta das duas — provável troca de campo.');
+  }
+  // Sem gradiente VD > TP não há ejeção; alguns mmHg de diferença cabem no erro de medida.
+  if (!isNaN(vds) && !isNaN(paps) && paps > vds + 5) {
+    av.push('PAP sistólica acima da sistólica do VD: o VD precisa superar a pressão do tronco para ejetar. Suspeite de troca de campo, amortecimento da curva ou zero diferente entre os registros.');
+  }
   const prad = num('prad');
   if (!isNaN(pam) && !isNaN(prad) && pam <= prad) av.push('PA média menor ou igual à pressão de AD: a RVS seria negativa.');
   const gtp = papm - poap;
@@ -1246,6 +1316,9 @@ const GATILHOS = {
   papm: calcularRVP,
   poap: calcularRVP,
   prad: calcularRVS,
+  vds: avaliarPressoes,
+  vdd1: avaliarPressoes,
+  vdd2: avaliarPressoes,
   dc: () => { calcularVSI(); calcularRVP(); calcularRVS(); },
   ic: () => { calcularVSI(); calcularRVP(); },
   vo2: () => { calcularFickDC(); calcularQpQs(); },
@@ -1748,6 +1821,21 @@ function executarTestes() {
     return [document.getElementById('dc').classList.contains('invalido'), true];
   });
 
+  // --- Tabela de pressoes: linha do VD ---
+  const avisoPressao = () => document.getElementById('pressao-aviso').textContent;
+  T('VD D1 acima da D2 gera aviso de troca', () => {
+    zerar(); preencher({ ...base, vds: '62', vdd1: '12', vdd2: '4' });
+    return [avisoPressao().includes('diastólica 1 acima da diastólica 2'), true];
+  });
+  T('PAPs acima da sistolica do VD gera aviso', () => {
+    zerar(); preencher({ ...base, vds: '40' });
+    return [avisoPressao().includes('PAP sistólica acima da sistólica do VD'), true];
+  });
+  T('VD coerente nao gera aviso de VD', () => {
+    zerar(); preencher({ ...base, vds: '62', vdd1: '2', vdd2: '8' });
+    return [/VD/.test(avisoPressao()), false];
+  });
+
   // --- Restaurar o exame reconstroi a precisao ---
   // Testa o mecanismo (recalcularTudo, chamado por restaurarEstado) e nao o
   // localStorage, que nao existe em paginas servidas como data: URL.
@@ -1807,6 +1895,5 @@ if (/^(https?|file):$/.test(location.protocol) &&
   executarTestes();
 }
 </script>
-
 </body>
 </html>
