@@ -479,6 +479,38 @@
   }
   #copy-feedback.show { opacity: 1; }
 
+  .abas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 1.5px solid var(--border-strong);
+    margin-bottom: 18px;
+  }
+  .aba {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    margin-bottom: -1.5px;
+    padding: 10px 16px;
+  }
+  .aba:hover { color: var(--text); }
+  .aba[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .aba:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+  .comp {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .comp th, .comp td { padding: 7px 6px; border-top: 1px solid var(--border); text-align: right; }
+  .comp th:first-child, .comp td:first-child { text-align: left; }
+  .comp thead th { font-size: 0.72rem; font-weight: 500; color: var(--text-muted); border-top: none; }
+  .comp td { font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace; }
+  .comp td:first-child { font-family: inherit; color: var(--text-muted); }
+
   footer {
     color: var(--text-muted);
     font-size: 0.76rem;
@@ -500,6 +532,12 @@
     <button class="btn-ghost" onclick="document.getElementById('banner-restaurado').style.display='none'">Continuar este exame</button>
   </div>
 
+  <div class="abas" role="tablist" aria-label="Condições do exame">
+    <button type="button" class="aba" id="tab-basal" role="tab" aria-selected="true" aria-controls="aba-basal" onclick="mostrarAba('basal')">Basal</button>
+    <button type="button" class="aba" id="tab-cond" role="tab" aria-selected="false" aria-controls="aba-cond" onclick="abrirCondicao()">+ Condição adicional</button>
+  </div>
+
+  <div class="aba-painel" id="aba-basal" role="tabpanel" aria-labelledby="tab-basal">
   <div class="panel">
     <div class="panel-head"><span class="tick"></span><h2>Paciente</h2></div>
     <div class="grid">
@@ -742,6 +780,164 @@
     <div id="interpretacao"></div>
     <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Faixas de refer&ecirc;ncia das diretrizes (ESC/ERS 2022 para hipertens&atilde;o pulmonar; ESC 2020 e ACC/AHA para cardiopatia congênita do adulto), exibidas apenas como apoio &mdash; n&atilde;o entram no texto do laudo e n&atilde;o substituem o julgamento cl&iacute;nico.</p>
   </div>
+  </div>
+
+  <!-- Condição adicional: as mesmas medidas repetidas sob a condição.
+       Os ids levam o prefixo c_ e espelham os da aba Basal (prad -> c_prad). -->
+  <div class="aba-painel" id="aba-cond" role="tabpanel" aria-labelledby="tab-cond" hidden>
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Condição</h2></div>
+    <div class="grid">
+      <div class="field toggle-field wide">
+        <label>Tipo</label>
+        <div class="toggle">
+          <label><input type="radio" name="condtipo" value="nitro" checked><span>Nitroprussiato</span></label>
+          <label><input type="radio" name="condtipo" value="outra"><span>Outra</span></label>
+        </div>
+      </div>
+      <div class="field" id="c-nome-field" style="display:none;">
+        <label for="c_nome">Nome da condição</label>
+        <input type="text" id="c_nome" placeholder="ex.: óxido nítrico 20 ppm">
+      </div>
+    </div>
+    <div id="c-nitro" style="margin-top:18px;">
+      <div class="grid">
+        <div class="field">
+          <label for="c_vazao">Vazão final (mL/h)</label>
+          <input type="text" id="c_vazao" inputmode="decimal" placeholder="&#8212;">
+        </div>
+        <div class="field">
+          <label for="c_dose">Dose (mcg/kg/min)</label>
+          <input type="text" id="c_dose" inputmode="decimal" placeholder="&#8212;" readonly>
+        </div>
+      </div>
+      <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Solução padrão de 200 mcg/mL. Dose = vazão (mL/h) &times; 200 &divide; 60 &divide; peso (kg), com o peso da aba Basal.</p>
+      <p class="aviso" id="c-dose-aviso"></p>
+      <p class="pendencia" id="c-dose-pendencia"></p>
+    </div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Peso, altura, idade, sexo, Hb e VO2 v&ecirc;m da aba Basal. Aqui entram s&oacute; as medidas repetidas sob a condi&ccedil;&atilde;o.</p>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn-ghost" onclick="removerCondicao()">Remover condição</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Sinais sob a condição</h2></div>
+    <div class="grid">
+      <div class="field">
+        <label for="c_fc">FC (bpm)</label>
+        <input type="text" id="c_fc" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_so2">SO2 (%)</label>
+        <input type="text" id="c_so2" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_pas">PA sistólica (mmHg)</label>
+        <input type="text" id="c_pas" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_pad">PA diastólica (mmHg)</label>
+        <input type="text" id="c_pad" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_pam">PA média (mmHg)</label>
+        <input type="text" id="c_pam" inputmode="decimal" placeholder="&#8212;">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Pressões complementares</h2></div>
+    <div class="hemo-caixa">
+    <div class="hemo" role="group" aria-label="Pressões por câmara sob a condição (mmHg)">
+      <div class="hemo-titulo">Pressão (mmHg)</div>
+      <div class="hemo-cab">Local</div>
+      <div class="hemo-cab">Sistólica</div>
+      <div class="hemo-cab"><span class="hemo-longo">Diastólica</span><span class="hemo-curto">Diast.</span> 1</div>
+      <div class="hemo-cab"><span class="hemo-longo">Diastólica</span><span class="hemo-curto">Diast.</span> 2</div>
+      <div class="hemo-cab">Média</div>
+
+      <div class="hemo-local">Átrio direito</div>
+      <div class="hemo-vazio"></div>
+      <div class="hemo-vazio"></div>
+      <div class="hemo-vazio"></div>
+      <div class="field"><label class="sr-only" for="c_prad">Pressão de AD (mmHg)</label><input type="text" id="c_prad" inputmode="decimal" placeholder="&#8212;"></div>
+
+      <div class="hemo-local">Ventrículo direito</div>
+      <div class="field"><label class="sr-only" for="c_vds">VD sistólica (mmHg)</label><input type="text" id="c_vds" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="field"><label class="sr-only" for="c_vdd1">VD diastólica 1 (mmHg)</label><input type="text" id="c_vdd1" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="field"><label class="sr-only" for="c_vdd2">VD diastólica 2 (mmHg)</label><input type="text" id="c_vdd2" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="hemo-vazio"></div>
+
+      <div class="hemo-local">Tronco pulmonar</div>
+      <div class="field"><label class="sr-only" for="c_paps">PA pulmonar sistólica (mmHg)</label><input type="text" id="c_paps" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="field"><label class="sr-only" for="c_papd">PA pulmonar diastólica (mmHg)</label><input type="text" id="c_papd" inputmode="decimal" placeholder="&#8212;"></div>
+      <div class="hemo-vazio"></div>
+      <div class="field"><label class="sr-only" for="c_papm">PAPm &mdash; média (mmHg)</label><input type="text" id="c_papm" inputmode="decimal" placeholder="&#8212;"></div>
+
+      <div class="hemo-local">Capilar pulmonar</div>
+      <div class="hemo-vazio"></div>
+      <div class="hemo-vazio"></div>
+      <div class="hemo-vazio"></div>
+      <div class="field"><label class="sr-only" for="c_poap">POAP (mmHg)</label><input type="text" id="c_poap" inputmode="decimal" placeholder="&#8212;"></div>
+    </div>
+    </div>
+    <p class="aviso" id="c_pressao-aviso"></p>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Mesmas regras da aba Basal: médias estimadas por (sistólica + 2&times;diastólica) / 3, editáveis; os valores alimentam a RVP e a RVS da condição.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Débito cardíaco e resistências</h2></div>
+    <div class="grid">
+      <div class="field toggle-field wide">
+        <label>Método do DC</label>
+        <div class="toggle">
+          <label><input type="radio" name="c_dcmethod" value="Termodiluição" checked><span>Termodiluição</span></label>
+          <label><input type="radio" name="c_dcmethod" value="Fick"><span>Fick</span></label>
+        </div>
+      </div>
+      <div class="field" id="c-svo2-field" style="display:none;">
+        <label for="c_svo2">SvO2 (%)</label>
+        <input type="text" id="c_svo2" inputmode="decimal" placeholder="&#8212;">
+      </div>
+    </div>
+    <div class="grid" style="margin-top:18px;">
+      <div class="field">
+        <label for="c_dc">DC (L/min)</label>
+        <input type="text" id="c_dc" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_ic">IC (L/min/m&sup2;)</label>
+        <input type="text" id="c_ic" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_vs">VS (mL/bat)</label>
+        <input type="text" id="c_vs" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_vsi">VSi (mL/bat/m&sup2;)</label>
+        <input type="text" id="c_vsi" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_rvp">RVP (WU)</label>
+        <input type="text" id="c_rvp" inputmode="decimal" placeholder="&#8212;">
+      </div>
+      <div class="field">
+        <label for="c_rvs">RVS (dyn&middot;s&middot;cm&#8315;&#8309;)</label>
+        <input type="text" id="c_rvs" inputmode="decimal" placeholder="&#8212;">
+      </div>
+    </div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Fick usa a SO2 e a SvO2 desta aba com a Hb e o VO2 da aba Basal (assume-se o mesmo consumo de O2). IC, VS, VSi, RVP e RVS saem como na aba Basal, calculados e editáveis.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span class="tick"></span><h2>Basal &times; condição</h2></div>
+    <div id="c-comparativo"></div>
+    <p class="aviso" id="c-leitura"></p>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin:14px 0 0;">Apoio na tela &mdash; a tabela não entra no texto do laudo.</p>
+  </div>
+  </div>
 
   <div class="actions">
     <button class="btn-primary" onclick="gerarLaudo()">Gerar laudo</button>
@@ -781,6 +977,13 @@ const FAIXAS = {
   qp: [0.5, 25], qs: [0.5, 15], qpqs: [0.3, 8], rvp: [0, 30], rvs: [200, 4000]
 };
 
+// A condição repete as medidas basais: mesmas faixas.
+['fc', 'so2', 'pas', 'pad', 'pam', 'paps', 'papd', 'papm', 'poap', 'prad', 'vds', 'vdd1', 'vdd2',
+ 'svo2', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'].forEach(id => { FAIXAS['c_' + id] = FAIXAS[id]; });
+// 10 mcg/kg/min é o teto habitual do nitroprussiato; 400 mL/h cobre isso até ~130 kg.
+FAIXAS.c_vazao = [0.5, 400];
+FAIXAS.c_dose = [0, 10];
+
 // Diferença arteriovenosa mínima aceita: abaixo da resolução do co-oxímetro o
 // quociente explode e o número deixa de ter significado clínico.
 const DIF_MIN = 1;
@@ -795,7 +998,9 @@ function num(id) {
 // Nome do campo como aparece na tela, para as mensagens.
 function rotulo(id) {
   const lbl = document.querySelector(`label[for="${id}"]`);
-  return lbl ? lbl.textContent.trim() : id;
+  const nome = lbl ? lbl.textContent.trim() : id;
+  // A condição repete os nomes da aba Basal; sem prefixo, "FC (bpm)" seria ambíguo.
+  return id.startsWith('c_') ? `${nomeCondicao()}: ${nome}` : nome;
 }
 
 function foraDeFaixa(id) {
@@ -808,7 +1013,8 @@ function foraDeFaixa(id) {
 
 // Campos preenchidos por cálculo. Uma edição manual os "trava": o app não
 // sobrescreve mais um valor que o operador digitou (apagar o campo destrava).
-const DERIVADOS = ['pam', 'papm', 'mv', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs', 'qp', 'qs', 'qpqs'];
+const DERIVADOS = ['pam', 'papm', 'mv', 'dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs', 'qp', 'qs', 'qpqs',
+                   'c_pam', 'c_papm', 'c_dc', 'c_ic', 'c_vs', 'c_vsi', 'c_rvp', 'c_rvs'];
 
 function travado(id) {
   return document.getElementById(id).dataset.manual === '1';
@@ -911,9 +1117,10 @@ function calcularRVS() {
 
 // Coerências que não dependem de diretriz: se violadas, houve troca de campo
 // ou erro de traçado, e o número derivado não é interpretável.
-function avaliarPressoes() {
-  const papm = calc('papm'), poap = num('poap'), papd = num('papd'), paps = num('paps');
-  const pam = calc('pam'), pas = num('pas'), pad = num('pad');
+// p = '' avalia a aba Basal; p = 'c_' avalia a condição adicional.
+function avaliarPressoes(p = '') {
+  const papm = calc(p + 'papm'), poap = num(p + 'poap'), papd = num(p + 'papd'), paps = num(p + 'paps');
+  const pam = calc(p + 'pam'), pas = num(p + 'pas'), pad = num(p + 'pad');
   const av = [];
   if (!isNaN(papm) && !isNaN(poap) && papm < poap) {
     av.push('POAP maior que a PAP média: o gradiente transpulmonar seria negativo. Reveja o encunhamento e o zero do transdutor.');
@@ -922,7 +1129,7 @@ function avaliarPressoes() {
   }
   if (!isNaN(paps) && !isNaN(papd) && papd > paps) av.push('PAP diastólica maior que a sistólica.');
   if (!isNaN(pas) && !isNaN(pad) && pad > pas) av.push('PA diastólica maior que a sistólica.');
-  const vds = num('vds'), vdd1 = num('vdd1'), vdd2 = num('vdd2');
+  const vds = num(p + 'vds'), vdd1 = num(p + 'vdd1'), vdd2 = num(p + 'vdd2');
   if (!isNaN(vds) && ((!isNaN(vdd1) && vdd1 >= vds) || (!isNaN(vdd2) && vdd2 >= vds))) {
     av.push('Diastólica do VD maior ou igual à sistólica.');
   }
@@ -933,13 +1140,13 @@ function avaliarPressoes() {
   if (!isNaN(vds) && !isNaN(paps) && paps > vds + 5) {
     av.push('PAP sistólica acima da sistólica do VD: o VD precisa superar a pressão do tronco para ejetar. Suspeite de troca de campo, amortecimento da curva ou zero diferente entre os registros.');
   }
-  const prad = num('prad');
+  const prad = num(p + 'prad');
   if (!isNaN(pam) && !isNaN(prad) && pam <= prad) av.push('PA média menor ou igual à pressão de AD: a RVS seria negativa.');
   const gtp = papm - poap;
   if (!isNaN(gtp) && gtp >= 0 && gtp <= 5) {
     av.push('Gradiente transpulmonar de ' + Math.round(gtp) + ' mmHg está dentro do erro de medida: a RVP calculada não sustenta uma casa decimal.');
   }
-  document.getElementById('pressao-aviso').textContent = av.join(' ');
+  document.getElementById(p + 'pressao-aviso').textContent = av.join(' ');
 }
 
 
@@ -1302,8 +1509,9 @@ document.querySelectorAll('input[name="o2mode"]').forEach(radio => {
 // Trocar o método muda a procedência do DC. Descartar a família inteira, pela
 // mesma razão que o toggle da CIA já faz: senão o laudo rotula um número de
 // termodiluição como Fick, e vice-versa.
-function descartarFamiliaDC() {
-  ['dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'].forEach(id => {
+function descartarFamiliaDC(p = '') {
+  ['dc', 'ic', 'vs', 'vsi', 'rvp', 'rvs'].forEach(s => {
+    const id = p + s;
     const el = document.getElementById(id);
     el.dataset.manual = '';
     el.classList.remove('manual');
@@ -1320,6 +1528,202 @@ document.querySelectorAll('input[name="dcmethod"]').forEach(radio => {
     calcularQpQs();
     atualizarInterpretacao();
   });
+});
+
+// ---------------------------------------------------------------------------
+// Condição adicional (ex.: nitroprussiato) — as medidas repetidas sob a
+// condição. Peso, altura, Hb e VO2 são os da aba Basal; o resto é medido de novo.
+// ---------------------------------------------------------------------------
+
+// Solução padrão de nitroprussiato do serviço.
+const NITRO_MCG_ML = 200;
+
+let condAtiva = false;
+
+function condTipo() {
+  return document.querySelector('input[name="condtipo"]:checked').value;
+}
+
+function condMetodo() {
+  return document.querySelector('input[name="c_dcmethod"]:checked').value;
+}
+
+function nomeCondicao() {
+  if (condTipo() === 'nitro') return 'Nitroprussiato';
+  return document.getElementById('c_nome').value.trim() || 'Condição 2';
+}
+
+function mostrarAba(qual) {
+  ['basal', 'cond'].forEach(a => {
+    document.getElementById('aba-' + a).hidden = a !== qual;
+    document.getElementById('tab-' + a).setAttribute('aria-selected', String(a === qual));
+  });
+}
+
+function atualizarAbaCond() {
+  document.getElementById('tab-cond').textContent = condAtiva ? nomeCondicao() : '+ Condição adicional';
+  document.getElementById('c-nome-field').style.display = condTipo() === 'outra' ? '' : 'none';
+  document.getElementById('c-nitro').style.display = condTipo() === 'nitro' ? '' : 'none';
+  document.getElementById('c-svo2-field').style.display = condMetodo() === 'Fick' ? '' : 'none';
+}
+
+function abrirCondicao() {
+  if (!condAtiva) {
+    condAtiva = true;
+    calcularCondicao();
+    invalidarLaudo();
+    salvarEstado();
+  }
+  mostrarAba('cond');
+}
+
+function removerCondicao() {
+  if (!confirm('Remover a condição adicional e apagar as medidas dela?')) return;
+  limparCondicao();
+  mostrarAba('basal');
+  invalidarLaudo();
+  salvarEstado();
+}
+
+function limparCondicao() {
+  condAtiva = false;
+  document.querySelectorAll('#aba-cond input[type="text"]').forEach(i => {
+    i.value = '';
+    i.dataset.manual = '';
+    i.classList.remove('manual', 'invalido', 'faltando');
+    delete PRECISO[i.id];
+  });
+  document.querySelector('input[name="condtipo"][value="nitro"]').checked = true;
+  document.querySelector('input[name="c_dcmethod"][value="Termodiluição"]').checked = true;
+  calcularCondicao();
+}
+
+// Dose (mcg/kg/min) = vazão (mL/h) × concentração (mcg/mL) / 60 / peso (kg).
+function calcularDose() {
+  const peso = num('peso');
+  const vazao = num('c_vazao');
+  const aviso = document.getElementById('c-dose-aviso');
+  const pendencia = document.getElementById('c-dose-pendencia');
+  aviso.textContent = '';
+  pendencia.textContent = '';
+  if (!isNaN(peso) && peso > 0 && !isNaN(vazao) && vazao > 0) {
+    const dose = vazao * NITRO_MCG_ML / 60 / peso;
+    setCalc('c_dose', dose.toFixed(2), dose);
+    if (dose > 10) {
+      aviso.textContent = 'Dose acima de 10 mcg/kg/min, o teto habitual do nitroprussiato. Confira a vazão e o peso.';
+    }
+  } else {
+    limparCalc('c_dose');
+    if (!isNaN(vazao) && (isNaN(peso) || peso <= 0)) {
+      pendencia.textContent = 'Informe o peso na aba Basal para calcular a dose.';
+    }
+  }
+}
+
+// Refaz a condição inteira: é barato, e ela depende de campos das duas abas.
+function calcularCondicao() {
+  const pam = (num('c_pas') + 2 * num('c_pad')) / 3;
+  if (!isNaN(pam)) setCalc('c_pam', Math.round(pam), pam);
+  else limparCalc('c_pam');
+
+  const papm = (num('c_paps') + 2 * num('c_papd')) / 3;
+  if (!isNaN(papm)) setCalc('c_papm', Math.round(papm), papm);
+  else limparCalc('c_papm');
+
+  calcularDose();
+
+  if (condMetodo() === 'Fick') {
+    const vo2 = calc('vo2');
+    const hb = num('hb');
+    const dif = num('c_so2') - num('c_svo2');
+    if (!isNaN(vo2) && vo2 > 0 && !isNaN(hb) && hb > 0 && !isNaN(dif) && dif >= DIF_MIN) {
+      const dc = vo2 / (0.134 * hb * dif);
+      setCalc('c_dc', dc.toFixed(1), dc);
+    } else {
+      limparCalc('c_dc');
+    }
+  }
+
+  const dc = calc('c_dc');
+  const fc = num('c_fc');
+  const bsa = calcularBSA();
+  if (!isNaN(dc) && !isNaN(bsa) && bsa > 0) {
+    const ic = dc / bsa;
+    setCalc('c_ic', ic.toFixed(1), ic);
+  } else {
+    limparCalc('c_ic');
+  }
+  if (!isNaN(dc) && !isNaN(fc) && fc > 0) {
+    const vs = (dc * 1000) / fc;
+    setCalc('c_vs', Math.round(vs), vs);
+  } else {
+    limparCalc('c_vs');
+  }
+  const ic = calc('c_ic');
+  if (!isNaN(ic) && !isNaN(fc) && fc > 0) {
+    const vsi = (ic * 1000) / fc;
+    setCalc('c_vsi', Math.round(vsi), vsi);
+  } else {
+    limparCalc('c_vsi');
+  }
+
+  const gtp = calc('c_papm') - num('c_poap');
+  if (!isNaN(gtp) && gtp >= 0 && !isNaN(dc) && dc > 0) {
+    const rvp = gtp / dc;
+    setCalc('c_rvp', rvp.toFixed(1), rvp);
+  } else {
+    limparCalc('c_rvp');
+  }
+
+  const pamC = calc('c_pam');
+  const prad = num('c_prad');
+  if (!isNaN(pamC) && !isNaN(prad) && pamC > prad && !isNaN(dc) && dc > 0) {
+    const rvs = 80 * (pamC - prad) / dc;
+    setCalc('c_rvs', Math.round(rvs), rvs);
+  } else {
+    limparCalc('c_rvs');
+  }
+
+  avaliarPressoes('c_');
+  atualizarComparativo();
+  atualizarAbaCond();
+}
+
+function escapar(t) {
+  return t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function atualizarComparativo() {
+  const gtp = p => calc(p + 'papm') - num(p + 'poap');
+  const linhas = [
+    ['PA média (mmHg)', calc('pam'), calc('c_pam'), 0],
+    ['PAPm (mmHg)', calc('papm'), calc('c_papm'), 0],
+    ['POAP (mmHg)', num('poap'), num('c_poap'), 0],
+    ['Gradiente transpulmonar (mmHg)', gtp(''), gtp('c_'), 0],
+    ['DC (L/min)', calc('dc'), calc('c_dc'), 1],
+    ['IC (L/min/m²)', calc('ic'), calc('c_ic'), 1],
+    ['RVP (WU)', calc('rvp'), calc('c_rvp'), 1],
+    ['RVS (dynas)', calc('rvs'), calc('c_rvs'), 0]
+  ];
+  const cel = (v, casas) => isNaN(v) ? '&mdash;' : fmt(v, casas);
+  const delta = (b, c) => (isNaN(b) || isNaN(c) || b === 0) ? '&mdash;'
+    : (c >= b ? '+' : '&minus;') + fmt(Math.abs((c - b) / b * 100), 0) + '%';
+  document.getElementById('c-comparativo').innerHTML =
+    `<table class="comp"><thead><tr><th></th><th>Basal</th><th>${escapar(nomeCondicao())}</th><th>Variação</th></tr></thead><tbody>` +
+    linhas.map(([nome, b, c, casas]) =>
+      `<tr><td>${nome}</td><td>${cel(b, casas)}</td><td>${cel(c, casas)}</td><td>${delta(b, c)}</td></tr>`).join('') +
+    `</tbody></table>`;
+
+  // Critério da ISHLT para o teste com vasodilatador: a queda da RVP só vale
+  // com a PA sistólica mantida acima de 85 mmHg.
+  const pas = num('c_pas');
+  document.getElementById('c-leitura').textContent = (!isNaN(pas) && pas < 85)
+    ? 'PA sistólica abaixo de 85 mmHg sob a condição: a queda da RVP pode refletir hipotensão sistêmica, e o teste perde validade como prova de reversibilidade (ISHLT).'
+    : '';
+}
+
+document.querySelectorAll('input[name="c_dcmethod"]').forEach(radio => {
+  radio.addEventListener('change', () => descartarFamiliaDC('c_'));
 });
 
 // ---------------------------------------------------------------------------
@@ -1422,6 +1826,11 @@ document.querySelectorAll('input[name="sexo"]').forEach(r =>
 document.querySelectorAll('input[name="vo2mode"]').forEach(r =>
   r.addEventListener('change', atualizarModoVO2));
 
+// A condição usa peso, altura, Hb e VO2 da aba Basal. Registrado depois dos
+// recálculos da aba Basal, para rodar com os valores dela já atualizados.
+document.querySelectorAll('input').forEach(i =>
+  i.addEventListener(i.type === 'text' ? 'input' : 'change', calcularCondicao));
+
 // ---------------------------------------------------------------------------
 // Laudo
 // ---------------------------------------------------------------------------
@@ -1475,13 +1884,39 @@ RVP ${val('rvp')} WU; RVS ${val('rvs')} dynas.`;
     if (o2mode === 'o2') obrigatorios.push('o2lmin');
   }
 
+  if (condAtiva) {
+    const nome = document.getElementById('c_nome').value.trim() || '___';
+    const titulo = condTipo() === 'nitro'
+      ? `Sob nitroprussiato de sódio (${NITRO_MCG_ML} mcg/mL) a ${val('c_vazao')} mL/h = ${val('c_dose')} mcg/kg/min:`
+      : `Sob ${nome}:`;
+    const metodoCond = { 'Termodiluição': 'termodiluição', 'Fick': 'Fick' }[condMetodo()];
+    // Com CIA a RVS basal sai em WU; a da condição acompanha, para comparar.
+    const rvsC = calc('c_rvs');
+    const rvsCTexto = ciaAtiva()
+      ? `${isNaN(rvsC) ? '___' : (rvsC / 80).toFixed(1).replace('.', ',')} WU`
+      : `${val('c_rvs')} dynas`;
+    texto += `
+
+${titulo}
+PA ${val('c_pas')}/${val('c_pad')} (${val('c_pam')}) mmHg; FC ${val('c_fc')} bpm; SO2 ${val('c_so2')} %;
+DC por ${metodoCond} ${val('c_dc')} L/min; IC ${val('c_ic')} L/min/m²; VSi ${val('c_vsi')} mL/bat/m²;
+RVP ${val('c_rvp')} WU; RVS ${rvsCTexto}.`;
+    obrigatorios.push('c_pas', 'c_pad', 'c_pam', 'c_fc', 'c_so2', 'c_dc', 'c_ic', 'c_vsi', 'c_rvp', 'c_rvs',
+                      condTipo() === 'nitro' ? 'c_vazao' : 'c_nome');
+  }
+
   // Nomear os campos em falta e destacá-los: "8 campos vazios" obriga a caçar
   // o problema em oito telas de formulário.
   const vazios = obrigatorios.filter(id => document.getElementById(id).value.trim() === '');
   // Só campos visíveis: acusar valor implausível num campo escondido (ex.: módulo
-  // de CIA desmarcado) deixa o operador sem ter onde corrigir.
+  // de CIA desmarcado) deixa o operador sem ter onde corrigir. A aba que não está
+  // na tela conta como visível (a da condição, só se estiver ativa): o laudo leva as duas.
+  const abas = [...document.querySelectorAll('.aba-painel')].filter(a => a.id !== 'aba-cond' || condAtiva);
+  const escondidas = abas.map(a => a.hidden);
+  abas.forEach(a => { a.hidden = false; });
   const forai = Object.keys(FAIXAS).filter(id =>
     document.getElementById(id).offsetParent !== null && foraDeFaixa(id));
+  abas.forEach((a, i) => { a.hidden = escondidas[i]; });
   document.querySelectorAll('.faltando').forEach(e => e.classList.remove('faltando'));
   vazios.forEach(id => document.getElementById(id).classList.add('faltando'));
 
@@ -1496,7 +1931,7 @@ RVP ${val('rvp')} WU; RVS ${val('rvs')} dynas.`;
   }
   if (problemas.length && !confirm(problemas.join('\n\n') + '\n\nGerar o laudo mesmo assim?')) {
     const primeiro = document.getElementById(vazios[0] || forai[0]);
-    if (primeiro) { primeiro.scrollIntoView({ behavior: 'smooth', block: 'center' }); primeiro.focus(); }
+    if (primeiro) { mostrarAba(primeiro.closest('#aba-cond') ? 'cond' : 'basal'); primeiro.scrollIntoView({ behavior: 'smooth', block: 'center' }); primeiro.focus(); }
     return;
   }
 
@@ -1575,6 +2010,8 @@ function limparForm() {
   document.getElementById('output').textContent = '';
   document.getElementById('output-panel').style.display = 'none';
   atualizarFickExtra();
+  limparCondicao();
+  mostrarAba('basal');
   try { localStorage.removeItem(CHAVE); } catch (e) { /* sem storage */ }
 }
 
@@ -1597,7 +2034,10 @@ function salvarEstado() {
       o2mode: document.querySelector('input[name="o2mode"]:checked').value,
       dcmethod: document.querySelector('input[name="dcmethod"]:checked').value,
       sexo: document.querySelector('input[name="sexo"]:checked').value,
-      vo2mode: document.querySelector('input[name="vo2mode"]:checked').value
+      vo2mode: document.querySelector('input[name="vo2mode"]:checked').value,
+      cond: condAtiva,
+      condtipo: condTipo(),
+      c_dcmethod: condMetodo()
     }));
   } catch (e) { /* modo privado ou storage bloqueado */ }
 }
@@ -1618,6 +2058,11 @@ function restaurarEstado() {
   if (sx) sx.checked = true;
   const vm = document.querySelector(`input[name="vo2mode"][value="${dados.vo2mode}"]`);
   if (vm) vm.checked = true;
+  condAtiva = !!dados.cond;
+  const ct = document.querySelector(`input[name="condtipo"][value="${dados.condtipo}"]`);
+  if (ct) ct.checked = true;
+  const cdm = document.querySelector(`input[name="c_dcmethod"][value="${dados.c_dcmethod}"]`);
+  if (cdm) cdm.checked = true;
 
   Object.keys(dados.campos).forEach(id => {
     const el = document.getElementById(id);
@@ -1655,11 +2100,13 @@ function recalcularTudo() {
   calcularRVP();
   calcularRVS();
   atualizarInterpretacao();
+  calcularCondicao();
 }
 
 restaurarEstado();
 document.getElementById('vo2').readOnly = vo2Estimado();
 atualizarInterpretacao();
+calcularCondicao();
 document.querySelectorAll('input[type="text"]').forEach(i => i.addEventListener('input', salvarEstado));
 document.querySelectorAll('input[type="radio"], #cia-ativo').forEach(i => i.addEventListener('change', salvarEstado));
 
@@ -1687,6 +2134,8 @@ function executarTestes() {
     pick('o2mode', 'aa'); pick('sexo', 'M'); pick('vo2mode', 'dehmer');
     document.querySelector('input[name="dcmethod"][value="Termodiluição"]').disabled = false;
     pick('dcmethod', 'Termodiluição');
+    limparCondicao();
+    mostrarAba('basal');
   }
 
   const base = { peso: '70', altura: '170', fc: '78', idade: '45', so2: '98', hb: '14',
@@ -1888,6 +2337,56 @@ function executarTestes() {
       (document.getElementById('cia-ativo').checked ? ' CIA-marcada' : '') +
       (document.getElementById('output').textContent ? ' laudo-na-tela' : '');
     return [erro + sobrou, ''];
+  });
+
+  // --- Condicao adicional (nitroprussiato) ---
+  const cond = { c_fc: '84', c_so2: '97', c_pas: '110', c_pad: '65',
+                 c_paps: '44', c_papd: '24', c_poap: '8', c_prad: '4' };
+  const laudoCom = () => {
+    const confirmar = window.confirm;
+    window.confirm = () => true;
+    try { gerarLaudo(); } finally { window.confirm = confirmar; }
+    return document.getElementById('output').textContent;
+  };
+  T('dose: 12 mL/h a 200 mcg/mL em 70 kg = 0,57 mcg/kg/min', () => {
+    zerar(); preencher(base); abrirCondicao(); set('c_vazao', '12');
+    return [g('c_dose'), '0.57'];
+  });
+  T('trocar o peso recalcula a dose', () => {
+    zerar(); preencher(base); abrirCondicao(); set('c_vazao', '12'); set('peso', '80');
+    return [g('c_dose'), '0.50'];
+  });
+  T('dose sem peso fica vazia', () => {
+    zerar(); abrirCondicao(); set('c_vazao', '12');
+    return [g('c_dose'), ''];
+  });
+  T('RVP da condicao usa pressoes e DC da condicao, sem mexer na basal', () => {
+    zerar(); preencher(base); set('dc', '5'); abrirCondicao(); preencher(cond); set('c_dc', '6');
+    const rvpC = (((44 + 2 * 24) / 3 - 8) / 6).toFixed(1);
+    const rvpB = (((60 + 2 * 37) / 3 - 12) / 5).toFixed(1);
+    return [g('c_rvp') + ' ' + g('rvp'), rvpC + ' ' + rvpB];
+  });
+  T('Fick na condicao usa VO2 e Hb da aba Basal', () => {
+    zerar(); preencher(base); abrirCondicao(); preencher(cond);
+    pick('c_dcmethod', 'Fick'); set('c_svo2', '70');
+    const vo2 = 125 * 0.007184 * Math.pow(70, 0.425) * Math.pow(170, 0.725);
+    return [g('c_dc'), (vo2 / (0.134 * 14 * 27)).toFixed(1)];
+  });
+  T('laudo traz o bloco do nitroprussiato com a dose', () => {
+    zerar(); preencher(base); set('dc', '5'); abrirCondicao(); preencher(cond);
+    set('c_vazao', '12'); set('c_dc', '6');
+    return [laudoCom().includes('Sob nitroprussiato de sódio (200 mcg/mL) a 12 mL/h = 0,57 mcg/kg/min:'), true];
+  });
+  T('sem condicao o laudo nao traz o bloco', () => {
+    zerar(); preencher(base); set('dc', '5');
+    return [laudoCom().includes('Sob '), false];
+  });
+  T('Limpar desativa a condicao e apaga as medidas dela', () => {
+    zerar(); preencher(base); abrirCondicao(); set('c_vazao', '12');
+    const confirmar = window.confirm;
+    window.confirm = () => true;
+    try { limparForm(); } finally { window.confirm = confirmar; }
+    return [String(condAtiva) + g('c_vazao') + g('c_dose'), 'false'];
   });
 
   const linhas = casos.map(([nome, fn]) => {
